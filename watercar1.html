@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>水車利用與早期水車技術演進 - 互動模擬器</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Noto Sans TC', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        canvas {
+            touch-action: none;
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Header / Banner -->
+    <header class="bg-slate-950 border-b border-slate-800 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <span class="p-2.5 bg-sky-500/20 border border-sky-400/30 rounded-xl text-sky-400">
+                        <i class="fa-solid fa-water-ladder text-2xl"></i>
+                    </span>
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-sky-300 via-amber-200 to-emerald-200">
+                            水車利用與早期水車技術演進
+                        </h1>
+                    </div>
+                </div>
+                <div class="text-xs text-slate-300 bg-slate-800 border border-slate-700 rounded-xl px-3 py-1.5 self-start sm:self-auto flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    物理模擬運行中
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container (Pure Canvas & Controls) -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 flex-grow flex flex-col justify-center w-full">
+
+        <section class="bg-slate-800/90 rounded-3xl shadow-2xl border border-slate-700/80 overflow-hidden flex flex-col">
+            <!-- Mode Header Badge (Dedicated Bucket Irrigation Mode) -->
+            <div class="bg-slate-950/80 border-b border-slate-700/60 p-3 flex justify-start">
+                <div class="px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 bg-sky-600 text-white shadow-md">
+                    <i class="fa-solid fa-wheat-awn"></i> 提水灌溉（筒車）水利展示
+                </div>
+            </div>
+
+            <!-- Canvas Container -->
+            <div class="relative bg-slate-950 flex flex-col justify-center items-center overflow-hidden h-[460px] sm:h-[560px]">
+                <canvas id="waterwheelCanvas" class="w-full h-full block"></canvas>
+                
+                <!-- Overlay Title & Subtitle Badge -->
+                <div class="absolute top-4 left-4 glass-panel border border-slate-700 rounded-xl px-4 py-2.5 shadow-xl max-w-[90%] sm:max-w-md">
+                    <div id="canvas-mode-title" class="font-bold text-white text-sm sm:text-base flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                        筒車 (Water Lift Wheel) 提水灌溉模式
+                    </div>
+                    <div id="canvas-mode-subtitle" class="text-xs text-slate-300 mt-1 leading-relaxed">
+                        河流水流向右推動水輪逆時針旋轉；右側汲水提升至頂部傾倒進水渠，經由主引水溝渠與分流支渠灌溉農田水稻區。
+                    </div>
+                </div>
+
+                <!-- Canvas Dynamic Direction Indicator -->
+                <div class="absolute bottom-3 left-4 text-xs text-sky-200 bg-slate-900/80 backdrop-blur-md px-3.5 py-1.5 rounded-lg border border-sky-500/30 shadow-md">
+                    <i class="fa-solid fa-arrows-rotate mr-1.5 text-sky-400"></i> 河水向右流動 ($\rightarrow$) 驅動水輪逆時針旋轉 (CCW)
+                </div>
+            </div>
+
+            <!-- Bottom Control Panel -->
+            <div class="p-4 sm:p-5 bg-slate-900 border-t border-slate-800">
+                <div class="flex flex-col md:flex-row items-center justify-between gap-5">
+                    
+                    <!-- Water Speed Control Slider -->
+                    <div class="w-full md:w-2/3 space-y-2">
+                        <div class="flex justify-between items-center text-xs font-semibold">
+                            <label for="speedSlider" class="text-slate-200 flex items-center gap-2">
+                                <i class="fa-solid fa-gauge-high text-sky-400 text-sm"></i> 水流速度 / 流量調節
+                            </label>
+                            <span id="speedValText" class="px-2.5 py-0.5 bg-sky-950 border border-sky-700 text-sky-300 rounded-md font-bold text-xs">5.0 m/s</span>
+                        </div>
+                        <input type="range" id="speedSlider" min="1" max="10" step="0.1" value="5" class="w-full accent-sky-500 h-2 bg-slate-700 rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-[11px] text-slate-400 font-medium">
+                            <span>1.0 m/s (緩流)</span>
+                            <span>5.0 m/s (標準)</span>
+                            <span>10.0 m/s (急流)</span>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="w-full md:w-1/3 flex items-center gap-3">
+                        <button id="playPauseBtn" onclick="togglePlayPause()" class="flex-1 py-2.5 px-4 rounded-xl bg-sky-600 hover:bg-sky-500 active:scale-95 text-white font-bold text-sm shadow-lg shadow-sky-950 transition flex items-center justify-center gap-2">
+                            <i id="playIcon" class="fa-solid fa-pause"></i>
+                            <span id="playBtnText">暫停模擬</span>
+                        </button>
+                        <button onclick="resetSimulation()" class="py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 active:scale-95 text-slate-200 font-semibold text-sm transition flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-rotate-left"></i> 重置
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-950 border-t border-slate-800 text-slate-400 py-4 text-center text-xs">
+        <div class="max-w-7xl mx-auto px-4">
+            <p class="text-slate-400 font-medium">水車利用與早期水車技術演進 - 高清晰互動式 Canvas 物理模擬器</p>
+        </div>
+    </footer>
+
+
+    <!-- JAVASCRIPT SIMULATION LOGIC -->
+    <script>
+        // --- Canvas & Simulation Global State ---
+        const canvas = document.getElementById('waterwheelCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let currentMode = 'bucket'; // 'bucket', 'undershot', 'overshot'
+        let waterSpeed = 5.0;       // User controlled 1.0 to 10.0 m/s
+        let isPlaying = true;
+        let animationFrameId = null;
+
+        // Wheel Physics Variables
+        let wheelAngle = 0;
+        let wheelAngularVelocity = 0.014;
+        let activePourIntensity = 0; // Dynamic pour stream intensity indicator
+
+        // Particle Systems
+        let riverParticles = [];
+        let bucketWaterLevels = Array(12).fill(0); // Bucket contents [0.0 to 1.0]
+        let troughParticles = [];
+        let waterfallParticles = [];
+        let splashParticles = [];
+        let mainDitchParticles = [];
+        let branchChannelParticles = [];
+
+        // Initialize Canvas & Screen Setup
+        function initCanvas() {
+            const container = canvas.parentElement;
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = container.clientWidth * dpr;
+            canvas.height = container.clientHeight * dpr;
+            ctx.scale(dpr, dpr);
+            
+            const cliffX = container.clientWidth * 0.46;
+            const riverY = container.clientHeight * 0.65;
+
+            // Populate River Particles (Left to Right up to cliffX)
+            riverParticles = [];
+            for(let i = 0; i < 60; i++) {
+                riverParticles.push(createRiverParticle(container.clientWidth, container.clientHeight, riverY, cliffX));
+            }
+
+            troughParticles = [];
+            waterfallParticles = [];
+            splashParticles = [];
+            mainDitchParticles = [];
+            branchChannelParticles = [];
+        }
+
+        function createRiverParticle(w, h, riverY, cliffX) {
+            const ry = riverY || h * 0.65;
+            const maxX = cliffX || w * 0.46;
+            return {
+                x: Math.random() * (maxX - 15),
+                y: ry + 8 + (Math.random() * (h - ry - 15)),
+                vx: 2 + Math.random() * 3,
+                vy: (Math.random() - 0.5) * 0.4,
+                size: 2 + Math.random() * 3,
+                alpha: 0.3 + Math.random() * 0.5
+            };
+        }
+
+        // --- Main Animation Loop ---
+        function animate() {
+            if (isPlaying) {
+                updatePhysics();
+            }
+            renderCanvas();
+            animationFrameId = requestAnimationFrame(animate);
+        }
+
+        // --- Physics Calculations ---
+        function updatePhysics() {
+            const speedFactor = waterSpeed / 5.0;
+
+            if (currentMode === 'undershot') {
+                wheelAngularVelocity = 0.016 * speedFactor;
+            } else if (currentMode === 'overshot') {
+                wheelAngularVelocity = 0.024 * speedFactor;
+            } else { // 'bucket'
+                wheelAngularVelocity = 0.014 * speedFactor;
+            }
+
+            // COUNTER-CLOCKWISE ROTATION (Angle decreases)
+            wheelAngle -= wheelAngularVelocity;
+            if (wheelAngle < 0) {
+                wheelAngle += Math.PI * 2;
+            }
+
+            // Bucket fill/pour kinematics (CCW rotation)
+            const numSpokes = 12;
+            let isAnyBucketPouring = false;
+            let totalPourAmount = 0;
+
+            for (let i = 0; i < numSpokes; i++) {
+                let angle = (wheelAngle + (i * Math.PI * 2 / numSpokes)) % (Math.PI * 2);
+                if (angle < 0) angle += Math.PI * 2;
+
+                if (currentMode === 'bucket') {
+                    // Scooping water deep at 6 o'clock (submerged under river surface)
+                    if (angle > Math.PI * 0.38 && angle < Math.PI * 0.62) {
+                        bucketWaterLevels[i] = Math.min(1.0, bucketWaterLevels[i] + 0.22);
+                    }
+                    // Pouring water at top into elevated trough (around 1.25*PI to 1.55*PI rad)
+                    else if (angle > Math.PI * 1.25 && angle < Math.PI * 1.55) {
+                        if (bucketWaterLevels[i] > 0) {
+                            const pourRate = 0.18;
+                            const poured = Math.min(bucketWaterLevels[i], pourRate);
+                            bucketWaterLevels[i] -= poured;
+                            isAnyBucketPouring = true;
+                            totalPourAmount += poured;
+                        }
+                    }
+                } else if (currentMode === 'overshot') {
+                    if (angle > Math.PI * 1.25 && angle < Math.PI * 1.55) {
+                        bucketWaterLevels[i] = Math.min(1.0, bucketWaterLevels[i] + 0.25);
+                    } else if (angle > Math.PI * 0.35 && angle < Math.PI * 0.75) {
+                        bucketWaterLevels[i] = Math.max(0, bucketWaterLevels[i] - 0.2);
+                    }
+                } else {
+                    bucketWaterLevels[i] = 0;
+                }
+            }
+
+            // Smooth pour intensity transition for synchronized visual stream
+            if (isAnyBucketPouring) {
+                activePourIntensity = Math.min(1.0, activePourIntensity + 0.25);
+            } else {
+                activePourIntensity = Math.max(0, activePourIntensity - 0.15);
+            }
+
+            // Update River Stream Particles (Left -> Right up to cliff face)
+            const container = canvas.parentElement;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            const cliffX = w * 0.46;
+            const riverY = h * 0.65;
+
+            riverParticles.forEach(p => {
+                p.x += p.vx * speedFactor;
+                p.y += p.vy;
+                if (p.x > cliffX - 15) {
+                    p.x = -10;
+                    p.y = riverY + 8 + (Math.random() * (h - riverY - 15));
+                }
+            });
+
+            // Bucket Trough, Waterfall & Farmland Channel Particles
+            if (currentMode === 'bucket') {
+                const cx = w * 0.24;
+                const cy = h * 0.48;
+                const radius = Math.min(w, h) * 0.26;
+                const topTerraceY = h * 0.40;
+
+                const troughY = cy - radius + 20;
+                const startX = cx - radius * 0.35;
+                const endX = cliffX + 25;
+                const endY = troughY + 30;
+                const mainDitchY = topTerraceY;
+
+                // 1. Water flowing in elevated trough (STRICTLY SYNCED WITH BUCKET POURING)
+                if (isAnyBucketPouring && totalPourAmount > 0) {
+                    const spawnCount = Math.max(1, Math.floor(totalPourAmount * 12));
+                    for (let s = 0; s < spawnCount; s++) {
+                        troughParticles.push({
+                            progress: Math.random() * 0.04,
+                            speed: (0.018 + Math.random() * 0.005) * speedFactor,
+                            size: 2 + Math.random() * 2
+                        });
+                    }
+                }
+
+                for (let i = troughParticles.length - 1; i >= 0; i--) {
+                    const tp = troughParticles[i];
+                    tp.progress += tp.speed;
+                    if (tp.progress >= 1.0) {
+                        // Launch waterfall droplet into Main Ditch
+                        waterfallParticles.push({
+                            x: endX,
+                            y: endY,
+                            vx: (0.8 + Math.random() * 1.2) * speedFactor,
+                            vy: 0.5 + Math.random() * 1.0,
+                            gravity: 0.3,
+                            size: 2 + Math.random() * 2.5,
+                            alpha: 0.95
+                        });
+                        troughParticles.splice(i, 1);
+                    }
+                }
+
+                // 2. Waterfall Particles dropping down into Main Ditch
+                for (let i = waterfallParticles.length - 1; i >= 0; i--) {
+                    const wp = waterfallParticles[i];
+                    wp.x += wp.vx;
+                    wp.vy += wp.gravity;
+                    wp.y += wp.vy;
+
+                    if (wp.y >= mainDitchY + 4) {
+                        // Create splashes & add water into Main Ditch
+                        for (let s = 0; s < 3; s++) {
+                            splashParticles.push({
+                                x: wp.x,
+                                y: mainDitchY + 4,
+                                vx: (Math.random() - 0.4) * 3.0,
+                                vy: -(Math.random() * 2.5 + 1),
+                                size: 1.5 + Math.random() * 2,
+                                alpha: 1.0,
+                                life: 1.0
+                            });
+                        }
+
+                        // Spawn main ditch particle moving right
+                        if (Math.random() < 0.6) {
+                            mainDitchParticles.push({
+                                x: wp.x,
+                                y: mainDitchY + 4 + Math.random() * 8,
+                                vx: (1.5 + Math.random() * 1.5) * speedFactor,
+                                size: 2 + Math.random() * 1.5
+                            });
+                        }
+
+                        waterfallParticles.splice(i, 1);
+                    }
+                }
+
+                // 3. Splash particles update
+                for (let i = splashParticles.length - 1; i >= 0; i--) {
+                    const sp = splashParticles[i];
+                    sp.x += sp.vx;
+                    sp.vy += 0.25;
+                    sp.y += sp.vy;
+                    sp.life -= 0.07;
+                    sp.alpha = Math.max(0, sp.life);
+                    if (sp.life <= 0) splashParticles.splice(i, 1);
+                }
+
+                // 4. Main Ditch Flow Particles (Moving Right)
+                const startFarmX = cliffX + 10;
+                const endFarmX = w * 0.98;
+                const branch1X = startFarmX + (endFarmX - startFarmX) * 0.35;
+                const branch2X = startFarmX + (endFarmX - startFarmX) * 0.70;
+
+                for (let i = mainDitchParticles.length - 1; i >= 0; i--) {
+                    const mp = mainDitchParticles[i];
+                    mp.x += mp.vx;
+
+                    if (Math.abs(mp.x - branch1X) < 4 || Math.abs(mp.x - branch2X) < 4) {
+                        if (Math.random() < 0.5) {
+                            branchChannelParticles.push({
+                                x: mp.x,
+                                y: mainDitchY + 12,
+                                vy: (1.0 + Math.random() * 1.2) * speedFactor,
+                                size: 2 + Math.random() * 1.5
+                            });
+                            mainDitchParticles.splice(i, 1);
+                            continue;
+                        }
+                    }
+
+                    if (mp.x > endFarmX - 10) {
+                        mainDitchParticles.splice(i, 1);
+                    }
+                }
+
+                // 5. Branch Channel Particles
+                const upperPlotY = topTerraceY + 24;
+                const plotHeight = (h * 0.82 - upperPlotY - 20) / 2;
+                const lowerPlotY = upperPlotY + plotHeight + 16;
+                const maxChannelY = lowerPlotY + plotHeight;
+
+                for (let i = branchChannelParticles.length - 1; i >= 0; i--) {
+                    const bp = branchChannelParticles[i];
+                    bp.y += bp.vy;
+                    if (bp.y >= maxChannelY) {
+                        branchChannelParticles.splice(i, 1);
+                    }
+                }
+            }
+        }
+
+        // --- Render Function ---
+        function renderCanvas() {
+            const container = canvas.parentElement;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // 1. Sky Background
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, h);
+            skyGrad.addColorStop(0, '#090d16');
+            skyGrad.addColorStop(0.55, '#111827');
+            skyGrad.addColorStop(1, '#090d16');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            const cliffX = w * 0.46;
+            const cx = w * 0.24;
+            const cy = h * 0.48;
+            const radius = Math.min(w, h) * 0.26;
+            const riverY = h * 0.65;
+            const topTerraceY = h * 0.40;
+
+            // 2. Solid Cliff Face & Sub-surface Earth Layer (Highland Base)
+            drawCliffAndHighlandEarth(ctx, w, h, cliffX, topTerraceY, riverY);
+
+            // 3. Mode Specific Elements / Farmland
+            if (currentMode === 'overshot') {
+                drawAqueduct(ctx, cx, cy, radius, w, h);
+            } else if (currentMode === 'bucket') {
+                drawFarmlandAndIrrigationSystem(ctx, w, h, cliffX, topTerraceY);
+                drawElevatedTrough(ctx, cx, cy, radius, w, h, cliffX, topTerraceY);
+            }
+
+            // 4. Main River Stream & Waterwheel (Left Side Only)
+            drawRiver(ctx, w, h, waterSpeed, riverY, cliffX);
+            drawAFrameSupport(ctx, cx, cy, radius, h, riverY);
+            drawWaterwheel(ctx, cx, cy, radius);
+
+            // 5. Foreground Dynamic Water Effects
+            if (currentMode === 'bucket') {
+                drawBucketPourEffect(ctx, cx, cy, radius);
+            } else if (currentMode === 'overshot') {
+                drawOvershotSpout(ctx, cx, cy, radius);
+            } else if (currentMode === 'undershot') {
+                drawUndershotSplash(ctx, cx, cy, radius);
+            }
+        }
+
+        // --- DRAWING HELPER FUNCTIONS ---
+
+        // Draw Cliff Wall & Solid Earth Strata under Highland
+        function drawCliffAndHighlandEarth(ctx, w, h, cliffX, topTerraceY, riverY) {
+            ctx.save();
+
+            // Earth & Rock Layer Gradient (From topTerraceY to bottom of canvas h)
+            const earthGrad = ctx.createLinearGradient(cliffX, topTerraceY, w, h);
+            earthGrad.addColorStop(0, '#3f2314');
+            earthGrad.addColorStop(0.5, '#2a160a');
+            earthGrad.addColorStop(1, '#1c0e06');
+
+            ctx.fillStyle = earthGrad;
+            ctx.beginPath();
+            ctx.moveTo(cliffX - 35, h);             // Submerged cliff foot
+            ctx.lineTo(cliffX - 15, riverY);         // River surface cliff edge
+            ctx.lineTo(cliffX, topTerraceY);         // Cliff top edge
+            ctx.lineTo(w, topTerraceY);              // Far right top
+            ctx.lineTo(w, h);                        // Bottom right corner
+            ctx.closePath();
+            ctx.fill();
+
+            // Rock Strata Texture Lines
+            ctx.strokeStyle = '#573019';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.moveTo(cliffX - 22, riverY + 25);
+            ctx.lineTo(w, riverY + 25);
+            ctx.moveTo(cliffX - 14, riverY + 65);
+            ctx.lineTo(w, riverY + 65);
+            ctx.moveTo(cliffX - 6, riverY + 110);
+            ctx.lineTo(w, riverY + 110);
+            ctx.stroke();
+
+            // Grassy Cliff Top Edge
+            ctx.fillStyle = '#16a34a';
+            ctx.beginPath();
+            ctx.moveTo(cliffX - 5, topTerraceY);
+            ctx.lineTo(cliffX + 15, topTerraceY - 3);
+            ctx.lineTo(cliffX + 30, topTerraceY);
+            ctx.lineTo(cliffX, topTerraceY + 4);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // River Stream Drawing (Left Side Only up to Cliff Wall)
+        function drawRiver(ctx, w, h, speed, riverY, cliffX) {
+            const rY = riverY || h * 0.65;
+            const endRiverX = cliffX || w * 0.46;
+
+            const waterGrad = ctx.createLinearGradient(0, rY, 0, h);
+            waterGrad.addColorStop(0, 'rgba(14, 165, 233, 0.92)');
+            waterGrad.addColorStop(1, 'rgba(3, 105, 161, 0.98)');
+
+            ctx.fillStyle = waterGrad;
+            ctx.beginPath();
+            ctx.moveTo(0, rY);
+            ctx.lineTo(endRiverX - 15, rY);
+            ctx.lineTo(endRiverX - 35, h);
+            ctx.lineTo(0, h);
+            ctx.closePath();
+            ctx.fill();
+
+            // Surface Waves moving Left to Right
+            ctx.save();
+            ctx.strokeStyle = 'rgba(224, 242, 254, 0.6)';
+            ctx.lineWidth = 2;
+            const time = Date.now() * 0.003 * (speed / 5);
+
+            for (let j = 0; j < 3; j++) {
+                ctx.beginPath();
+                const yOffset = rY + j * 16 + 4;
+                for (let x = 0; x <= endRiverX - 15; x += 15) {
+                    const waveY = Math.sin(x * 0.02 - time + j) * 4 + yOffset;
+                    if (x === 0) ctx.moveTo(x, waveY);
+                    else ctx.lineTo(x, waveY);
+                }
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // River Water Particles
+            ctx.fillStyle = '#38bdf8';
+            riverParticles.forEach(p => {
+                if (p.x <= endRiverX - 15) {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        // Waterwheel Wooden Support Frame
+        function drawAFrameSupport(ctx, cx, cy, radius, h, riverY) {
+            ctx.save();
+            ctx.strokeStyle = '#78350f';
+            ctx.lineWidth = 10;
+            ctx.lineCap = 'round';
+
+            const rY = riverY || h * 0.65;
+
+            ctx.beginPath();
+            ctx.moveTo(cx - radius * 0.65, rY + 40);
+            ctx.lineTo(cx, cy);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(cx + radius * 0.65, rY + 40);
+            ctx.lineTo(cx, cy);
+            ctx.stroke();
+
+            ctx.lineWidth = 6;
+            ctx.beginPath();
+            ctx.moveTo(cx - radius * 0.42, cy + radius * 0.42);
+            ctx.lineTo(cx + radius * 0.42, cy + radius * 0.42);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        // Main Waterwheel Drawing Logic
+        function drawWaterwheel(ctx, cx, cy, radius) {
+            ctx.save();
+            ctx.translate(cx, cy);
+
+            const numSpokes = 12;
+
+            // Concentric Wooden Rims
+            ctx.strokeStyle = '#92400e';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.arc(0, 0, radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.lineWidth = 6;
+            ctx.strokeStyle = '#78350f';
+            ctx.beginPath();
+            ctx.arc(0, 0, radius * 0.82, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Spokes & Mounted Buckets/Paddles
+            for (let i = 0; i < numSpokes; i++) {
+                const angle = wheelAngle + (i * Math.PI * 2 / numSpokes);
+
+                ctx.save();
+                ctx.rotate(angle);
+
+                // Wooden Spoke
+                ctx.strokeStyle = '#b45309';
+                ctx.lineWidth = 4;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(radius, 0);
+                ctx.stroke();
+
+                // Cross Braces
+                ctx.strokeStyle = '#78350f';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(radius * 0.5, 0);
+                ctx.lineTo(radius * 0.82, -12);
+                ctx.stroke();
+
+                if (currentMode === 'undershot') {
+                    // Straight Flat Wooden Paddles
+                    ctx.fillStyle = '#78350f';
+                    ctx.fillRect(radius - 4, -16, 22, 32);
+                    ctx.strokeStyle = '#451a03';
+                    ctx.strokeRect(radius - 4, -16, 22, 32);
+                } 
+                else if (currentMode === 'bucket') {
+                    // Bamboo Scoop mounted angled forward in CCW direction
+                    ctx.save();
+                    ctx.translate(radius, 0);
+                    ctx.rotate(-Math.PI * 0.35);
+
+                    ctx.fillStyle = '#a16207';
+                    ctx.beginPath();
+                    ctx.roundRect(-6, -18, 16, 26, [3]);
+                    ctx.fill();
+                    ctx.strokeStyle = '#78350f';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+
+                    // Water inside bucket
+                    const waterAmt = bucketWaterLevels[i];
+                    if (waterAmt > 0) {
+                        ctx.fillStyle = '#0284c7';
+                        ctx.fillRect(-4, -16 + (1 - waterAmt) * 18, 12, 18 * waterAmt);
+                    }
+                    ctx.restore();
+                } 
+                else if (currentMode === 'overshot') {
+                    // Bucket Pockets for Overshot
+                    ctx.save();
+                    ctx.translate(radius, 0);
+                    ctx.rotate(-Math.PI * 0.25);
+                    ctx.fillStyle = '#78350f';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 14, Math.PI * 0.2, Math.PI * 1.5);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = '#451a03';
+                    ctx.stroke();
+
+                    const waterAmt = bucketWaterLevels[i];
+                    if (waterAmt > 0) {
+                        ctx.fillStyle = '#0ea5e9';
+                        ctx.beginPath();
+                        ctx.arc(0, 0, 10 * waterAmt, Math.PI * 0.2, Math.PI * 1.4);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                }
+
+                ctx.restore();
+            }
+
+            // Central Hub & Axle
+            ctx.fillStyle = '#451a03';
+            ctx.beginPath();
+            ctx.arc(0, 0, radius * 0.18, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(0, 0, radius * 0.07, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Elevated Trough & Waterfall to Main Ditch
+        function drawElevatedTrough(ctx, cx, cy, radius, w, h, cliffX, topTerraceY) {
+            const troughY = cy - radius + 20;
+            const startX = cx - radius * 0.35;
+            const endX = cliffX + 25;
+            const endY = troughY + 30;
+            const mainDitchY = topTerraceY;
+
+            // 1. Trough Wooden Support Posts
+            ctx.strokeStyle = '#78350f';
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.moveTo(startX + 30, troughY + 10);
+            ctx.lineTo(startX + 30, h * 0.65);
+            ctx.moveTo(endX - 10, endY + 8);
+            ctx.lineTo(endX - 10, mainDitchY + 12);
+            ctx.stroke();
+
+            // 2. Slanted Wooden Trough
+            ctx.fillStyle = '#a16207';
+            ctx.beginPath();
+            ctx.moveTo(startX, troughY);
+            ctx.lineTo(endX, endY);
+            ctx.lineTo(endX, endY + 12);
+            ctx.lineTo(startX, troughY + 12);
+            ctx.closePath();
+            ctx.fill();
+
+            // 3. Water Stream inside Trough
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
+            ctx.beginPath();
+            ctx.moveTo(startX + 4, troughY + 3);
+            ctx.lineTo(endX, endY + 3);
+            ctx.lineTo(endX, endY + 8);
+            ctx.lineTo(startX + 4, troughY + 8);
+            ctx.closePath();
+            ctx.fill();
+
+            // Trough Particles
+            ctx.fillStyle = '#e0f2fe';
+            troughParticles.forEach(tp => {
+                const px = startX + 4 + (endX - startX - 4) * tp.progress;
+                const py = (troughY + 5) + (endY - troughY) * tp.progress;
+                ctx.beginPath();
+                ctx.arc(px, py, tp.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 4. Dynamic Waterfall Flow Streams
+            ctx.save();
+            ctx.strokeStyle = 'rgba(56, 189, 248, 0.85)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([8, 5]);
+            const dashOffset = (Date.now() * 0.04) % 13;
+            ctx.lineDashOffset = -dashOffset;
+
+            for (let line = 0; line < 3; line++) {
+                const offsetX = (line - 1) * 3;
+                ctx.beginPath();
+                ctx.moveTo(endX + offsetX, endY + 4);
+                ctx.quadraticCurveTo(endX + 8 + offsetX, endY + (mainDitchY - endY) * 0.5, endX + 14 + offsetX, mainDitchY + 4);
+                ctx.stroke();
+            }
+            ctx.restore();
+
+            // 5. Falling Droplet Particles & Splashes
+            waterfallParticles.forEach(wp => {
+                ctx.strokeStyle = `rgba(224, 242, 254, ${wp.alpha})`;
+                ctx.lineWidth = wp.size;
+                ctx.beginPath();
+                ctx.moveTo(wp.x, wp.y);
+                ctx.lineTo(wp.x + wp.vx * 1.5, wp.y + wp.vy * 1.5);
+                ctx.stroke();
+            });
+
+            splashParticles.forEach(sp => {
+                ctx.fillStyle = `rgba(224, 242, 254, ${sp.alpha})`;
+                ctx.beginPath();
+                ctx.arc(sp.x, sp.y, sp.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // DETAILED FARMLAND & IRRIGATION SYSTEM (BUILT ON TOP OF HIGHLAND)
+        function drawFarmlandAndIrrigationSystem(ctx, w, h, cliffX, topTerraceY) {
+            const startX = cliffX + 10;
+            const endX = w * 0.98;
+
+            // 1. Waterlogged Paddy Plot Surfaces
+            const upperPlotY = topTerraceY + 24;
+            const plotHeight = (h * 0.82 - upperPlotY - 20) / 2;
+            const lowerPlotY = upperPlotY + plotHeight + 16;
+
+            const paddyWaterGrad = ctx.createLinearGradient(0, upperPlotY, 0, upperPlotY + plotHeight);
+            paddyWaterGrad.addColorStop(0, '#155e75');
+            paddyWaterGrad.addColorStop(1, '#0e7490');
+
+            ctx.fillStyle = paddyWaterGrad;
+            ctx.fillRect(startX + 16, upperPlotY, endX - startX - 32, plotHeight);
+            ctx.fillRect(startX + 16, lowerPlotY, endX - startX - 32, plotHeight);
+
+            // Water Surface Sky Light Reflection
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.15)';
+            ctx.fillRect(startX + 16, upperPlotY, endX - startX - 32, plotHeight * 0.4);
+            ctx.fillRect(startX + 16, lowerPlotY, endX - startX - 32, plotHeight * 0.4);
+
+            // 2. Main Irrigation Ditch
+            const ditchY = topTerraceY;
+            const ditchHeight = 16;
+
+            ctx.fillStyle = '#451a03';
+            ctx.fillRect(startX, ditchY, endX - startX, ditchHeight);
+
+            ctx.fillStyle = '#0284c7';
+            ctx.fillRect(startX + 2, ditchY + 3, endX - startX - 4, ditchHeight - 6);
+
+            // Animated Main Ditch Particles
+            ctx.fillStyle = '#7dd3fc';
+            mainDitchParticles.forEach(mp => {
+                ctx.beginPath();
+                ctx.arc(mp.x, mp.y, mp.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 3. Branch Irrigation Channels
+            const branch1X = startX + (endX - startX) * 0.35;
+            const branch2X = startX + (endX - startX) * 0.70;
+            const channelWidth = 14;
+
+            [branch1X, branch2X].forEach(bx => {
+                ctx.fillStyle = '#451a03';
+                ctx.fillRect(bx - 2, ditchY + ditchHeight, channelWidth + 4, lowerPlotY + plotHeight - ditchY - ditchHeight);
+
+                ctx.fillStyle = '#0369a1';
+                ctx.fillRect(bx, ditchY + ditchHeight, channelWidth, lowerPlotY + plotHeight - ditchY - ditchHeight);
+            });
+
+            // Animated Branch Channel Particles
+            ctx.fillStyle = '#38bdf8';
+            branchChannelParticles.forEach(bp => {
+                ctx.beginPath();
+                ctx.arc(bp.x, bp.y, bp.size, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            // 4. Field Ridges / Bunds
+            ctx.fillStyle = '#78350f';
+            ctx.fillRect(startX + 12, upperPlotY - 6, endX - startX - 24, 6);
+            ctx.fillRect(startX + 12, upperPlotY + plotHeight, endX - startX - 24, 16);
+            ctx.fillRect(startX + 12, lowerPlotY + plotHeight, endX - startX - 24, 6);
+
+            ctx.fillRect(startX + 10, upperPlotY - 6, 6, lowerPlotY + plotHeight - upperPlotY + 12);
+            ctx.fillRect(endX - 16, upperPlotY - 6, 6, lowerPlotY + plotHeight - upperPlotY + 12);
+
+            // 5. TWO NEAT ROWS OF RICE SEEDLINGS
+            const plantScale = Math.min(w, h) / 750;
+
+            const upperRowY = upperPlotY + plotHeight * 0.65;
+            for (let col = 0; col < 8; col++) {
+                const px = startX + 35 + col * ((endX - startX - 70) / 7);
+                if (Math.abs(px - branch1X) < 18 || Math.abs(px - branch2X) < 18) continue;
+                drawDetailedRicePlant(ctx, px, upperRowY, plantScale);
+            }
+
+            const lowerRowY = lowerPlotY + plotHeight * 0.65;
+            for (let col = 0; col < 8; col++) {
+                const px = startX + 35 + col * ((endX - startX - 70) / 7);
+                if (Math.abs(px - branch1X) < 18 || Math.abs(px - branch2X) < 18) continue;
+                drawDetailedRicePlant(ctx, px, lowerRowY, plantScale);
+            }
+
+            // 6. Text Labels
+            drawLabelBadge(ctx, startX + 45, ditchY - 14, "主引水溝渠 (Main Ditch)", "#38bdf8", "#0369a1");
+            drawLabelBadge(ctx, branch1X + 22, upperPlotY + 16, "分流支渠", "#38bdf8", "#0284c7");
+            drawLabelBadge(ctx, startX + 55, upperPlotY + plotHeight + 8, "田埂 (Field Ridge)", "#f59e0b", "#78350f");
+            drawLabelBadge(ctx, endX - 110, lowerRowY - 26, "水稻區 (Paddy Field)", "#4ade80", "#15803d");
+        }
+
+        // Detailed Rice Seedling Drawing Helper
+        function drawDetailedRicePlant(ctx, x, y, scale = 1.0) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            ctx.strokeStyle = 'rgba(186, 230, 253, 0.6)';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.ellipse(0, 3, 9 * scale, 3.5 * scale, 0, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#15803d';
+            ctx.lineWidth = 3 * scale;
+            ctx.beginPath();
+            ctx.moveTo(0, 3);
+            ctx.lineTo(0, -12 * scale);
+            ctx.stroke();
+
+            ctx.lineWidth = 2.2 * scale;
+
+            ctx.strokeStyle = '#22c55e';
+            ctx.beginPath();
+            ctx.moveTo(0, -4 * scale);
+            ctx.quadraticCurveTo(-10 * scale, -14 * scale, -15 * scale, -8 * scale);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#16a34a';
+            ctx.beginPath();
+            ctx.moveTo(0, -7 * scale);
+            ctx.quadraticCurveTo(-7 * scale, -20 * scale, -9 * scale, -22 * scale);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#4ade80';
+            ctx.beginPath();
+            ctx.moveTo(0, -7 * scale);
+            ctx.quadraticCurveTo(7 * scale, -20 * scale, 9 * scale, -22 * scale);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#22c55e';
+            ctx.beginPath();
+            ctx.moveTo(0, -4 * scale);
+            ctx.quadraticCurveTo(10 * scale, -14 * scale, 15 * scale, -8 * scale);
+            ctx.stroke();
+
+            ctx.fillStyle = '#fef08a';
+            ctx.beginPath();
+            ctx.arc(0, -16 * scale, 2.2 * scale, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        // Callout Text Badge Helper
+        function drawLabelBadge(ctx, x, y, text, textColor, bgColor) {
+            ctx.save();
+            ctx.font = 'bold 11px Noto Sans TC, sans-serif';
+            const metrics = ctx.measureText(text);
+            const paddingX = 8;
+            const paddingY = 4;
+            const w = metrics.width + paddingX * 2;
+            const h = 18;
+
+            ctx.fillStyle = bgColor;
+            ctx.globalAlpha = 0.88;
+            ctx.beginPath();
+            ctx.roundRect(x - paddingX, y - h / 2, w, h, [4]);
+            ctx.fill();
+
+            ctx.globalAlpha = 1.0;
+            ctx.strokeStyle = textColor;
+            ctx.lineWidth = 1;
+            ctx.stroke();
+
+            ctx.fillStyle = textColor;
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, x, y + 1);
+            ctx.restore();
+        }
+
+        function drawAqueduct(ctx, cx, cy, radius, w, h) {
+            const flumeY = cy - radius - 15;
+            const riverY = h * 0.65;
+
+            ctx.strokeStyle = '#78350f';
+            ctx.lineWidth = 6;
+            for (let x = 30; x < cx - 10; x += 60) {
+                ctx.beginPath();
+                ctx.moveTo(x, flumeY + 15);
+                ctx.lineTo(x, riverY);
+                ctx.stroke();
+            }
+
+            ctx.fillStyle = '#92400e';
+            ctx.fillRect(0, flumeY, cx - 15, 16);
+
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.9)';
+            ctx.fillRect(0, flumeY + 3, cx - 15, 10);
+        }
+
+        function drawOvershotSpout(ctx, cx, cy, radius) {
+            const flumeY = cy - radius - 12;
+
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.85)';
+            ctx.beginPath();
+            ctx.moveTo(cx - 20, flumeY + 3);
+            ctx.quadraticCurveTo(cx - 30, flumeY + 12, cx - radius * 0.5, cy - radius * 0.8);
+            ctx.lineTo(cx - radius * 0.6, cy - radius * 0.7);
+            ctx.quadraticCurveTo(cx - 35, flumeY + 12, cx - 10, flumeY + 3);
+            ctx.fill();
+
+            ctx.fillStyle = '#e0f2fe';
+            for (let i = 0; i < 4; i++) {
+                ctx.beginPath();
+                ctx.arc(cx - radius * 0.5 + (Math.random() - 0.5) * 15, cy - radius * 0.75 + (Math.random() - 0.5) * 10, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function drawBucketPourEffect(ctx, cx, cy, radius) {
+            if (activePourIntensity <= 0.05) return;
+
+            const pourX = cx - radius * 0.35;
+            const pourY = cy - radius + 15;
+
+            ctx.save();
+            ctx.globalAlpha = activePourIntensity;
+            ctx.fillStyle = 'rgba(56, 189, 248, 0.88)';
+            ctx.beginPath();
+            ctx.moveTo(pourX - 4, pourY - 5);
+            ctx.lineTo(pourX + 4, pourY + 24);
+            ctx.lineTo(pourX + 10, pourY + 24);
+            ctx.lineTo(pourX + 2, pourY - 5);
+            ctx.fill();
+
+            ctx.fillStyle = '#e0f2fe';
+            for (let i = 0; i < 3; i++) {
+                ctx.beginPath();
+                ctx.arc(pourX + (Math.random() - 0.3) * 10, pourY + Math.random() * 20, 1.8, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        }
+
+        function drawUndershotSplash(ctx, cx, cy, radius) {
+            const splashX = cx;
+            const splashY = cy + radius * 0.8;
+
+            ctx.fillStyle = 'rgba(224, 242, 254, 0.8)';
+            for(let i = 0; i < 6; i++) {
+                ctx.beginPath();
+                ctx.arc(splashX + (Math.random() - 0.1) * 35, splashY + (Math.random() - 0.5) * 12, 2 + Math.random() * 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // --- Mode Switching & Control Handlers ---
+
+        function switchMode(mode) {
+            currentMode = 'bucket';
+            bucketWaterLevels = Array(12).fill(0);
+        }
+
+        function togglePlayPause() {
+            isPlaying = !isPlaying;
+            const playIcon = document.getElementById('playIcon');
+            const playBtnText = document.getElementById('playBtnText');
+            
+            if (isPlaying) {
+                playIcon.className = "fa-solid fa-pause";
+                playBtnText.innerText = "暫停模擬";
+            } else {
+                playIcon.className = "fa-solid fa-play";
+                playBtnText.innerText = "播放模擬";
+            }
+        }
+
+        function resetSimulation() {
+            wheelAngle = 0;
+            waterSpeed = 5.0;
+            document.getElementById('speedSlider').value = 5.0;
+            document.getElementById('speedValText').innerText = "5.0 m/s";
+            isPlaying = true;
+            document.getElementById('playIcon').className = "fa-solid fa-pause";
+            document.getElementById('playBtnText').innerText = "暫停模擬";
+            bucketWaterLevels = Array(12).fill(0);
+        }
+
+        // Slider Event Listener
+        document.getElementById('speedSlider').addEventListener('input', (e) => {
+            waterSpeed = parseFloat(e.target.value);
+            document.getElementById('speedValText').innerText = waterSpeed.toFixed(1) + " m/s";
+        });
+
+        // Initialize on Window Load
+        window.addEventListener('load', () => {
+            initCanvas();
+            animate();
+        });
+
+        // Responsive Window Resize Handler
+        window.addEventListener('resize', () => {
+            initCanvas();
+        });
+    </script>
+</body>
+</html>

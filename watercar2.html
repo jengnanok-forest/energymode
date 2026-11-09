@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>古代筒車（下射式水輪）農田灌溉物理模擬器</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Noto Serif TC & Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;700;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        serif: ['"Noto Serif TC"', 'serif'],
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        wood: {
+                            100: '#F4EBE1',
+                            300: '#D7C0AE',
+                            500: '#967E76',
+                            700: '#6B4F4F',
+                            800: '#4A3434',
+                            900: '#2C1D1D',
+                        },
+                        bamboo: {
+                            300: '#A3E635',
+                            500: '#65A30D',
+                            700: '#3F6212',
+                        },
+                        water: {
+                            100: '#E0F2FE',
+                            300: '#7DD3FC',
+                            500: '#0EA5E9',
+                            700: '#0369A1',
+                            900: '#0C4A6E',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Serif TC', sans-serif;
+            background-color: #121826;
+            color: #E2E8F0;
+        }
+        /* Custom styled scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        /* Pulse animations for step annotations */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 0.3; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .pulse-effect {
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+        /* Glassmorphism styling */
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col overflow-x-hidden">
+
+    <!-- Top Navigation Header -->
+    <header class="bg-slate-900/90 border-b border-slate-800 px-4 py-3 sticky top-0 z-50 backdrop-blur-md">
+        <div class="max-w-7xl mx-mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-lg bg-amber-700/30 border border-amber-600/50 flex items-center justify-center text-amber-500 font-bold text-xl shadow-inner">
+                    <i class="fa-solid fa-dharmachakra"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg md:text-xl font-bold font-serif text-amber-100 flex items-center gap-2">
+                        古代筒車（下射式水輪）水利灌溉模擬器
+                        <span class="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 font-sans font-normal">唐代水利工程</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Undershot Noria Agricultural Irrigation Interactive Physical Simulation</p>
+                </div>
+            </div>
+
+            <!-- Quick Action Buttons -->
+            <div class="flex items-center space-x-2">
+                <button id="btn-preset-standard" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-amber-200 flex items-center gap-1.5">
+                    <i class="fa-solid fa-seedling text-emerald-400"></i> 標準灌溉
+                </button>
+                <button id="btn-preset-flood" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-sky-200 flex items-center gap-1.5">
+                    <i class="fa-solid fa-water text-sky-400"></i> 豐水期強流
+                </button>
+                <button id="btn-preset-drought" class="px-3 py-1.5 text-xs font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-orange-200 flex items-center gap-1.5">
+                    <i class="fa-solid fa-sun text-amber-400"></i> 枯水期慢流
+                </button>
+                <button id="btn-open-info" class="px-3 py-1.5 text-xs font-medium bg-amber-600/20 hover:bg-amber-600/30 border border-amber-500/40 rounded-lg text-amber-300 transition-colors flex items-center gap-1">
+                    <i class="fa-solid fa-book-open"></i> 歷史與原理
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-3 md:p-5 flex flex-col gap-5">
+        
+        <!-- Canvas & Interactive Viewport (Full Width Focus) -->
+        <div class="flex flex-col gap-4">
+            <!-- Simulation Canvas Container -->
+            <div class="relative w-full bg-slate-950 rounded-2xl border border-slate-800 overflow-hidden shadow-2xl group flex flex-col">
+                
+                <!-- Floating Info Badge Overlay -->
+                <div class="absolute top-4 left-4 z-10 flex flex-wrap gap-2 pointer-events-none">
+                    <div class="glass-panel px-3 py-1.5 rounded-lg text-xs font-mono text-slate-200 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                        水輪狀態: <span id="status-state-text" class="text-emerald-400 font-semibold">運轉中</span>
+                    </div>
+                    <div class="glass-panel px-3 py-1.5 rounded-lg text-xs font-mono text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-arrows-spin text-amber-400"></i>
+                        轉速: <span id="overlay-rpm" class="text-amber-300 font-bold">0.0</span> RPM
+                    </div>
+                    <div class="glass-panel px-3 py-1.5 rounded-lg text-xs font-mono text-slate-200 flex items-center gap-2">
+                        <i class="fa-solid fa-faucet-drip text-sky-400"></i>
+                        提水量: <span id="overlay-flow" class="text-sky-300 font-bold">0.0</span> L/min
+                    </div>
+                </div>
+
+                <!-- Floating Canvas Toolbar -->
+                <div class="absolute top-4 right-4 z-10 flex items-center gap-2 bg-slate-900/80 p-1.5 rounded-xl border border-slate-700/80 backdrop-blur-md">
+                    <button id="btn-toggle-vectors" title="切換物理向量顯示" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-300 flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-vector-square text-xs"></i>
+                    </button>
+                    <button id="btn-toggle-annotations" title="切換步驟標註" class="w-8 h-8 rounded-lg bg-amber-600/30 hover:bg-amber-600/50 border border-amber-500/50 text-amber-300 flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-tags text-xs"></i>
+                    </button>
+                    <button id="btn-toggle-particles" title="特效水花" class="w-8 h-8 rounded-lg bg-sky-600/30 hover:bg-sky-600/50 border border-sky-500/50 text-sky-300 flex items-center justify-center transition-colors">
+                        <i class="fa-solid fa-wand-magic-sparkles text-xs"></i>
+                    </button>
+                </div>
+
+                <!-- HTML5 Canvas Element -->
+                <canvas id="sim-canvas" class="w-full h-[450px] sm:h-[520px] md:h-[580px] block cursor-crosshair touch-none"></canvas>
+
+                <!-- Bottom Simulation Control Bar -->
+                <div class="bg-slate-900/90 border-t border-slate-800 p-3 flex flex-wrap items-center justify-between gap-3 z-10">
+                    <div class="flex items-center space-x-2">
+                        <button id="btn-play-pause" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-lg text-sm transition-all flex items-center gap-2 shadow-lg shadow-amber-600/20">
+                            <i class="fa-solid fa-pause" id="play-icon"></i> <span id="play-btn-text">暫停模擬</span>
+                        </button>
+                        <button id="btn-step" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 rounded-lg text-sm transition-colors flex items-center gap-1.5" title="單步推進 (Step)">
+                            <i class="fa-solid fa-forward-step"></i> 步進
+                        </button>
+                        <button id="btn-reset" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 rounded-lg text-sm transition-colors flex items-center gap-1.5" title="重置水輪">
+                            <i class="fa-solid fa-rotate-right"></i> 重置
+                        </button>
+                    </div>
+
+                    <!-- Speed & Simulation Time -->
+                    <div class="flex items-center space-x-4 text-xs text-slate-400">
+                        <div class="flex items-center space-x-2">
+                            <span>模擬倍速:</span>
+                            <select id="select-time-scale" class="bg-slate-800 border border-slate-700 text-slate-200 rounded px-2 py-1 focus:outline-none focus:border-amber-500">
+                                <option value="0.5">0.5x 慢速</option>
+                                <option value="1.0" selected>1.0x 正常</option>
+                                <option value="2.0">2.0x 加速</option>
+                            </select>
+                        </div>
+                        <div class="font-mono hidden sm:block">
+                            運轉時間: <span id="text-sim-time" class="text-slate-200">00:00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real-time Energy & Performance Dashboard -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col">
+                    <span class="text-xs text-slate-400 flex items-center justify-between">
+                        水輪轉速 (RPM)
+                        <i class="fa-solid fa-gauge-high text-amber-500"></i>
+                    </span>
+                    <span id="metric-rpm" class="text-2xl font-bold font-mono text-amber-400 mt-1">0.0</span>
+                    <span class="text-[10px] text-slate-500 mt-0.5">每分鐘旋轉圈數</span>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col">
+                    <span class="text-xs text-slate-400 flex items-center justify-between">
+                        提水量 (L/min)
+                        <i class="fa-solid fa-bucket text-sky-500"></i>
+                    </span>
+                    <span id="metric-flow" class="text-2xl font-bold font-mono text-sky-400 mt-1">0.0</span>
+                    <span class="text-[10px] text-slate-500 mt-0.5">高位水渠進水速率</span>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col">
+                    <span class="text-xs text-slate-400 flex items-center justify-between">
+                        機械轉化效率 (%)
+                        <i class="fa-solid fa-bolt text-emerald-500"></i>
+                    </span>
+                    <span id="metric-eff" class="text-2xl font-bold font-mono text-emerald-400 mt-1">0.0%</span>
+                    <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+                        <div id="bar-eff" class="bg-emerald-500 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+                <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-3 flex flex-col">
+                    <span class="text-xs text-slate-400 flex items-center justify-between">
+                        累積灌溉總量
+                        <i class="fa-solid fa-droplet text-blue-400"></i>
+                    </span>
+                    <span id="metric-total-water" class="text-2xl font-bold font-mono text-blue-300 mt-1">0 L</span>
+                    <span class="text-[10px] text-slate-500 mt-0.5">農田已獲供給水量</span>
+                </div>
+            </div>
+
+            <!-- Integrated Control Panel Below Canvas -->
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- River Speed Slider -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between text-xs">
+                        <label for="input-river-speed" class="text-slate-300 font-medium">河流衝擊流速 ($V_{river}$)</label>
+                        <span id="val-river-speed" class="text-amber-400 font-mono font-bold">2.4 m/s</span>
+                    </div>
+                    <input type="range" id="input-river-speed" min="0.5" max="5.0" step="0.1" value="2.4" class="w-full accent-amber-500 bg-slate-800 rounded-lg h-2 cursor-pointer">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                        <span>0.5 m/s</span>
+                        <span>2.5 m/s</span>
+                        <span>5.0 m/s</span>
+                    </div>
+                </div>
+
+                <!-- Bucket Count Slider -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between text-xs">
+                        <label for="input-bucket-count" class="text-slate-300 font-medium">輪緣竹筒數量 ($N_{bucket}$)</label>
+                        <span id="val-bucket-count" class="text-bamboo-300 font-mono font-bold">12 個</span>
+                    </div>
+                    <input type="range" id="input-bucket-count" min="4" max="16" step="2" value="12" class="w-full accent-bamboo-500 bg-slate-800 rounded-lg h-2 cursor-pointer">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                        <span>4 個</span>
+                        <span>12 個</span>
+                        <span>16 個</span>
+                    </div>
+                </div>
+
+                <!-- Bucket Capacity Slider -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between text-xs">
+                        <label for="input-bucket-capacity" class="text-slate-300 font-medium">單個竹筒容量 ($V_{cap}$)</label>
+                        <span id="val-bucket-capacity" class="text-sky-400 font-mono font-bold">6.0 L</span>
+                    </div>
+                    <input type="range" id="input-bucket-capacity" min="2.0" max="12.0" step="0.5" value="6.0" class="w-full accent-sky-500 bg-slate-800 rounded-lg h-2 cursor-pointer">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                        <span>2.0 L</span>
+                        <span>6.0 L</span>
+                        <span>12.0 L</span>
+                    </div>
+                </div>
+
+                <!-- Wheel Radius Slider -->
+                <div class="space-y-1.5">
+                    <div class="flex justify-between text-xs">
+                        <label for="input-wheel-radius" class="text-slate-300 font-medium">水輪直徑 ($D_{wheel}$)</label>
+                        <span id="val-wheel-radius" class="text-amber-300 font-mono font-bold">4.2 m</span>
+                    </div>
+                    <input type="range" id="input-wheel-radius" min="2.5" max="6.0" step="0.1" value="4.2" class="w-full accent-amber-500 bg-slate-800 rounded-lg h-2 cursor-pointer">
+                    <div class="flex justify-between text-[10px] text-slate-500 font-mono">
+                        <span>2.5 m</span>
+                        <span>4.2 m</span>
+                        <span>6.0 m</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Information & Historical Context Modal -->
+    <div id="info-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl p-6 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h2 class="text-lg font-bold font-serif text-amber-200 flex items-center gap-2">
+                    <i class="fa-solid fa-scroll text-amber-500"></i>
+                    唐代筒車與下射式水輪技術背景
+                </h2>
+                <button id="btn-close-modal" class="text-slate-400 hover:text-slate-200 w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="space-y-3 text-xs leading-relaxed text-slate-300">
+                <p>
+                    <strong>筒車（Noria）</strong> 是中國古代水利科技的傑出代表之一，最早於唐代（西元7-8世紀）廣泛推廣使用。宋代《水飾圖經》與明代《天工開物》中均有詳細記載與繪圖。
+                </p>
+                <div class="p-3 bg-slate-800/80 border-l-4 border-amber-500 rounded text-slate-200 italic font-serif">
+                    「凡引水灌田，有筒車者，沿流設輪，輪緣順置竹筒，隨流轉動，高汲低傾，晝夜不息，省力功倍。」——《天工開物·乃粒》
+                </div>
+                <h4 class="font-bold text-amber-300 text-sm mt-3">一、為什麼稱為「下射式水輪」（Undershot Wheel）？</h4>
+                <p>
+                    水輪按照引水衝擊位置分為下射式（Undershot）、中射式（Breastshot）與上射式（Overshot）。
+                    <strong>下射式水輪</strong> 架設在水流較急但無落差的平原河流中。水輪下半部直接浸入水中，純粹利用<strong>流水衝擊槳葉的動能</strong>驅動水輪運轉。
+                </p>
+                <h4 class="font-bold text-amber-300 text-sm mt-3">二、工程優勢與歷史價值</h4>
+                <ul class="list-disc list-inside space-y-1 text-slate-400 pl-2">
+                    <li><strong class="text-slate-200">无需大工程築壩：</strong> 適合平原大河岸邊，建造成本低廉。</li>
+                    <li><strong class="text-slate-200">晝夜自動運作：</strong> 只要河流持續奔流，筒車即24小時不停灌溉。</li>
+                    <li><strong class="text-slate-200">隨水位自適應：</strong> 可安裝於浮船（船磨/浮筒車）上，隨季節漲落變化。</li>
+                </ul>
+            </div>
+
+            <div class="border-t border-slate-800 pt-3 flex justify-end">
+                <button id="btn-close-modal-bottom" class="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold text-xs rounded-lg transition-colors">
+                    關閉說明
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Simulation Script Logic -->
+    <script>
+        // --- Core Simulation State & Parameters ---
+        const state = {
+            // Physics Parameters
+            riverSpeed: 2.4,        // m/s
+            bucketCount: 12,        // number of bamboo tubes
+            bucketCapacity: 6.0,    // Liters per bucket
+            wheelDiameter: 4.2,     // meters
+            friction: 0.15,         // drag coefficient
+            
+            // Dynamics
+            angle: 0,               // current rotation angle (radians)
+            angularVelocity: 0,     // rad/s
+            totalWaterLifted: 0,    // Total Liters delivered
+            simTime: 0,             // seconds
+            timeScale: 1.0,         // multiplier
+            isPaused: false,
+            
+            // Visual & UI Toggles
+            showVectors: false,
+            showAnnotations: true,
+            showParticles: true,
+            activeStep: null,       // Highlighted step (1..5)
+            
+            // Calculated Real-time Stats
+            rpm: 0,
+            flowRateLMin: 0,
+            efficiency: 0,
+            powerIn: 0,
+            powerOut: 0,
+            gravityTorque: 0,
+
+            // Buckets state array: Array of { angle, waterLevel (0..1) }
+            buckets: []
+        };
+
+        // Initialize Buckets array based on bucketCount
+        function initBuckets() {
+            state.buckets = [];
+            const step = (Math.PI * 2) / state.bucketCount;
+            for (let i = 0; i < state.bucketCount; i++) {
+                state.buckets.push({
+                    offsetAngle: i * step,
+                    waterLevel: 0.0 // 0 to 1
+                });
+            }
+        }
+        initBuckets();
+
+        // --- Particle System ---
+        class ParticleSystem {
+            constructor() {
+                this.particles = [];
+            }
+
+            // Water splash at river paddle impact
+            spawnPaddleSplash(x, y, riverVx) {
+                for (let i = 0; i < 3; i++) {
+                    this.particles.push({
+                        type: 'river_splash',
+                        x: x + (Math.random() - 0.5) * 20,
+                        y: y + (Math.random() - 0.5) * 10,
+                        vx: riverVx * 20 + (Math.random() - 0.5) * 40,
+                        vy: -Math.random() * 60 - 20,
+                        radius: Math.random() * 3 + 1.5,
+                        alpha: 0.8,
+                        life: 1.0
+                    });
+                }
+            }
+
+            // Water pour stream from apex bucket to trough
+            spawnBucketPour(x, y, targetX, targetY) {
+                for (let i = 0; i < 2; i++) {
+                    this.particles.push({
+                        type: 'pour_drop',
+                        x: x + (Math.random() - 0.5) * 8,
+                        y: y + (Math.random() - 0.5) * 4,
+                        vx: (targetX - x) * 0.8 + (Math.random() - 0.5) * 15,
+                        vy: Math.random() * 40 + 60,
+                        radius: Math.random() * 3 + 2,
+                        alpha: 0.9,
+                        life: 1.0
+                    });
+                }
+            }
+
+            // Trough channel flow & waterfall pour down from trough tip (Step 5)
+            spawnTroughFlow(startX, startY, endX, endY) {
+                // Water droplets along trough channel
+                if (Math.random() < 0.8) {
+                    const ratio = Math.random();
+                    this.particles.push({
+                        type: 'trough_drop',
+                        x: startX + ratio * (endX - startX),
+                        y: startY + ratio * (endY - startY),
+                        vx: (endX - startX) * 0.2 + Math.random() * 10,
+                        vy: (endY - startY) * 0.2 + Math.random() * 5,
+                        radius: Math.random() * 2 + 1.5,
+                        alpha: 0.8,
+                        life: 0.8
+                    });
+                }
+                
+                // Continuous Waterfall Stream Pouring Down vertically from end of trough (endX, endY) into the field
+                for (let i = 0; i < 3; i++) {
+                    this.particles.push({
+                        type: 'pour_stream',
+                        x: endX + (Math.random() - 0.5) * 6,
+                        y: endY + Math.random() * 4,
+                        vx: (Math.random() - 0.2) * 12,
+                        vy: Math.random() * 40 + 70, // Downward velocity
+                        radius: Math.random() * 3.5 + 2,
+                        alpha: 0.95,
+                        life: 1.0
+                    });
+                }
+            }
+
+            // Irrigation field splash
+            spawnFieldIrrigation(x, y) {
+                if (Math.random() < 0.6) {
+                    this.particles.push({
+                        type: 'crop_splash',
+                        x: x + (Math.random() - 0.5) * 35,
+                        y: y + Math.random() * 10,
+                        vx: (Math.random() - 0.5) * 20,
+                        vy: -Math.random() * 25 - 5,
+                        radius: Math.random() * 3 + 1,
+                        alpha: 0.9,
+                        life: 1.0
+                    });
+                }
+            }
+
+            update(dt) {
+                for (let i = this.particles.length - 1; i >= 0; i--) {
+                    const p = this.particles[i];
+                    p.x += p.vx * dt;
+                    p.y += p.vy * dt;
+                    p.life -= dt * 1.5;
+                    p.alpha = Math.max(0, p.life);
+
+                    if (p.type === 'pour_drop' || p.type === 'pour_stream') {
+                        p.vy += 220 * dt; // gravity acceleration
+                    }
+
+                    if (p.life <= 0) {
+                        this.particles.splice(i, 1);
+                    }
+                }
+            }
+
+            draw(ctx) {
+                ctx.save();
+                for (const p of this.particles) {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    if (p.type === 'river_splash') {
+                        ctx.fillStyle = `rgba(224, 242, 254, ${p.alpha})`;
+                    } else if (p.type === 'pour_drop' || p.type === 'pour_stream') {
+                        ctx.fillStyle = `rgba(56, 189, 248, ${p.alpha})`;
+                    } else if (p.type === 'trough_drop') {
+                        ctx.fillStyle = `rgba(125, 211, 252, ${p.alpha})`;
+                    } else {
+                        ctx.fillStyle = `rgba(52, 211, 153, ${p.alpha})`;
+                    }
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        const particleSys = new ParticleSystem();
+
+        // --- Canvas Setup & Responsive Handling ---
+        const canvas = document.getElementById('sim-canvas');
+        const ctx = canvas.getContext('2d');
+
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // --- Physics Engine Update ---
+        function updatePhysics(dt) {
+            if (state.isPaused) return;
+
+            const effectiveDt = dt * state.timeScale;
+            state.simTime += effectiveDt;
+
+            // Scaled radius on canvas (reduced for better proportion)
+            const R = canvas.getBoundingClientRect().width * 0.16;
+            const wheelRadiusMeters = state.wheelDiameter / 2.0;
+
+            // 1. Hydrodynamic force on submerged paddles at bottom
+            // Undershot: River flows Left-to-Right (+x). Bottom paddle pushed to Right.
+            // Clockwise vs Counter-Clockwise:
+            // Standard Canvas angle: 0 at 3 o'clock, PI/2 at 6 o'clock (bottom), PI at 9 o'clock, 3PI/2 at 12 o'clock (top).
+            // Pushing bottom (6 o'clock) to RIGHT (+x) turns wheel COUNTER-CLOCKWISE (angles decrease: 6 -> 3 -> 12 -> 9).
+            
+            const paddleRadiusVel = state.angularVelocity * wheelRadiusMeters; // m/s
+            const relativeFlowVel = Math.max(0, state.riverSpeed - paddleRadiusVel);
+            
+            // Hydrodynamic torque: T_hydro = 0.5 * rho * Cd * Area * v_rel^2 * R
+            const paddleArea = 0.4 * 0.6; // ~0.24 m^2
+            const rho = 1000; // kg/m^3
+            const Cd = 1.3;
+            const hydroForce = 0.5 * rho * Cd * paddleArea * Math.pow(relativeFlowVel, 2);
+            const hydroTorque = hydroForce * wheelRadiusMeters;
+
+            // 2. Gravity resisting torque from filled buckets rising on the right
+            let totalGravityTorque = 0;
+            let currentPourRate = 0;
+
+            // Angles on canvas:
+            // Bottom dipping zone: around angle = Math.PI / 2 (90 deg)
+            // Rising zone (Right side): angle goes from Math.PI/2 -> 0 -> 3*Math.PI/2
+            // Pouring zone (Apex top-left or top-right):
+            // Since rotation is Counter-Clockwise: 
+            // Bottom (6 o'clock) -> Right (3 o'clock) -> Top (12 o'clock) -> Left (9 o'clock) -> Bottom.
+            // Apex pour zone is near Top (12 o'clock to 11 o'clock), i.e., angle around -Math.PI/2 (or 3*Math.PI/2).
+
+            state.buckets.forEach(bucket => {
+                // Compute current absolute angle of this bucket
+                let curAngle = (state.angle + bucket.offsetAngle) % (Math.PI * 2);
+                if (curAngle < 0) curAngle += Math.PI * 2;
+
+                // Check Dipping/Scooping Zone at Bottom (around PI/2, i.e., 1.2 rad to 1.9 rad)
+                const isSubmerged = Math.abs(curAngle - Math.PI / 2) < 0.45;
+                if (isSubmerged) {
+                    // Fill bucket quickly
+                    const fillSpeed = 2.5; // per sec
+                    bucket.waterLevel = Math.min(1.0, bucket.waterLevel + fillSpeed * effectiveDt);
+                }
+
+                // Check Pouring Zone near Apex Top (around 3*PI/2, i.e. 4.71 rad)
+                // Top apex angle is 1.5 * PI (4.71). Pour zone: 4.5 to 5.1 rad
+                const isAtApex = (curAngle >= 4.3 && curAngle <= 5.1);
+                if (isAtApex && bucket.waterLevel > 0) {
+                    // Tilt angle forces water out
+                    const pourSpeed = 3.5;
+                    const poured = Math.min(bucket.waterLevel, pourSpeed * effectiveDt);
+                    bucket.waterLevel -= poured;
+                    currentPourRate += poured * state.bucketCapacity; // Liters
+                }
+
+                // Gravity Torque Calculation:
+                // Mass of water in bucket
+                const waterMass = bucket.waterLevel * state.bucketCapacity; // kg
+                // Position X relative to axle: R * cos(curAngle).
+                // If X > 0 (Right side), gravity creates counter-torque (resists CCW rotation).
+                const xPos = Math.cos(curAngle); // +1 at 3 o'clock, -1 at 9 o'clock
+                if (xPos > 0) {
+                    totalGravityTorque += waterMass * 9.81 * wheelRadiusMeters * xPos;
+                }
+            });
+
+            state.gravityTorque = totalGravityTorque;
+
+            // 3. Mechanical Friction Torque
+            const frictionTorque = state.friction * 40 * state.angularVelocity + 15;
+
+            // 4. Angular Acceleration & Velocity Integration
+            // Moment of Inertia I = 0.5 * M * R^2 + sum(m_b * R^2)
+            const wheelMass = 250; // kg wooden frame
+            const I = 0.5 * wheelMass * Math.pow(wheelRadiusMeters, 2) + (state.bucketCount * 5 * Math.pow(wheelRadiusMeters, 2));
+            
+            const netTorque = hydroTorque - totalGravityTorque - frictionTorque;
+            const angularAccel = netTorque / I;
+
+            state.angularVelocity += angularAccel * effectiveDt;
+            state.angularVelocity = Math.max(0, state.angularVelocity); // No reverse
+
+            // Update angle (Counter-Clockwise -> subtract)
+            state.angle -= state.angularVelocity * effectiveDt;
+            if (state.angle < 0) state.angle += Math.PI * 2;
+
+            // 5. Update Metrics & Performance
+            state.rpm = (state.angularVelocity * 60) / (2 * Math.PI);
+            
+            // Flow rate in L/min
+            state.flowRateLMin = (currentPourRate / effectiveDt) * 60;
+            if (isNaN(state.flowRateLMin)) state.flowRateLMin = 0;
+            state.totalWaterLifted += currentPourRate;
+
+            // Power & Efficiency calculation
+            // P_in = 0.5 * rho * Area * v_river^3
+            state.powerIn = 0.5 * rho * paddleArea * Math.pow(state.riverSpeed, 3);
+            
+            // P_out = m_dot * g * H
+            const massRatePerSec = (state.flowRateLMin / 60); // kg/s
+            const liftHeight = state.wheelDiameter * 0.85; // meters
+            state.powerOut = massRatePerSec * 9.81 * liftHeight;
+
+            state.efficiency = state.powerIn > 0 ? Math.min(35, (state.powerOut / state.powerIn) * 100) : 0;
+
+            // 6. Particle Updates
+            if (state.showParticles) {
+                particleSys.update(effectiveDt);
+
+                // Spawn river paddle splash at bottom
+                if (state.angularVelocity > 0.1) {
+                    const canvasW = canvas.getBoundingClientRect().width;
+                    const canvasH = canvas.getBoundingClientRect().height;
+                    const axleX = canvasW * 0.42;
+                    const axleY = canvasH * 0.50;
+                    particleSys.spawnPaddleSplash(axleX, axleY + R, state.riverSpeed);
+                }
+            }
+        }
+
+        // --- Render Engine ---
+        function render() {
+            const width = canvas.getBoundingClientRect().width;
+            const height = canvas.getBoundingClientRect().height;
+
+            ctx.clearRect(0, 0, width, height);
+
+            // Coordinates setup (water wheel scaled down and re-centered slightly)
+            const axleX = width * 0.38;
+            const axleY = height * 0.52;
+            const wheelR = width * 0.16;
+            const riverY = axleY + wheelR * 0.82;
+
+            // 1. Draw Sky & Background Scenery
+            drawBackground(ctx, width, height, riverY);
+
+            // 2. Draw Agricultural Paddy Field (Right Side)
+            const fieldX = width * 0.74;
+            drawCropField(ctx, fieldX, riverY - 40, width - fieldX, height - (riverY - 40));
+
+            // 3. Draw River Flow
+            drawRiver(ctx, width, height, riverY);
+
+            // 4. Draw Wooden Elevated Aqueduct / Trough (高架水渠)
+            // Positioned near Top-Left of wheel (around 11 o'clock)
+            const troughStartX = axleX - wheelR * 0.35;
+            const troughStartY = axleY - wheelR * 0.88;
+            const troughEndX = fieldX + 15;
+            const troughEndY = riverY - 55;
+            drawAqueduct(ctx, troughStartX, troughStartY, troughEndX, troughEndY, riverY);
+
+            // 5. Draw Wooden A-Frame Scaffolding Support Structure
+            drawScaffolding(ctx, axleX, axleY, riverY);
+
+            // 6. Draw Undershot Water Wheel & Bamboo Buckets
+            drawWaterWheel(ctx, axleX, axleY, wheelR, troughStartX, troughStartY);
+
+            // 7. Draw Particle Effects (Water splashes, pour stream, trough flow)
+            if (state.showParticles) {
+                // If water pouring at apex, spawn pour particles into trough
+                if (state.flowRateLMin > 5 && !state.isPaused) {
+                    particleSys.spawnBucketPour(axleX - wheelR * 0.2, axleY - wheelR * 0.95, troughStartX + 20, troughStartY + 10);
+                    particleSys.spawnTroughFlow(troughStartX + 20, troughStartY + 5, troughEndX, troughEndY);
+                    particleSys.spawnFieldIrrigation(troughEndX + 20, troughEndY + 30);
+                }
+                particleSys.draw(ctx);
+            }
+
+            // 8. Draw Physics Vectors Overlay
+            if (state.showVectors) {
+                drawPhysicsVectors(ctx, axleX, axleY, wheelR, riverY);
+            }
+
+            // 9. Draw Educational Step Annotations Overlay
+            if (state.showAnnotations) {
+                drawAnnotationsOverlay(ctx, axleX, axleY, wheelR, riverY, troughStartX, troughStartY, troughEndX, troughEndY);
+            }
+
+            // Update UI Counters & Indicators
+            updateUI();
+        }
+
+        // --- Render Sub-Components ---
+
+        function drawBackground(ctx, w, h, riverY) {
+            // Sky Gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, riverY);
+            skyGrad.addColorStop(0, '#0f172a');
+            skyGrad.addColorStop(0.6, '#1e293b');
+            skyGrad.addColorStop(1, '#334155');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, w, riverY);
+
+            // Distant Mountains
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.moveTo(0, riverY - 40);
+            ctx.lineTo(w * 0.2, riverY - 110);
+            ctx.lineTo(w * 0.45, riverY - 50);
+            ctx.lineTo(w * 0.7, riverY - 140);
+            ctx.lineTo(w, riverY - 60);
+            ctx.lineTo(w, riverY);
+            ctx.lineTo(0, riverY);
+            ctx.closePath();
+            ctx.fill();
+
+            // Sun with soft warm glow
+            const sunX = w * 0.15;
+            const sunY = h * 0.18;
+            const sunGlow = ctx.createRadialGradient(sunX, sunY, 5, sunX, sunY, 45);
+            sunGlow.addColorStop(0, 'rgba(251, 191, 36, 0.9)');
+            sunGlow.addColorStop(0.4, 'rgba(245, 158, 11, 0.3)');
+            sunGlow.addColorStop(1, 'rgba(245, 158, 11, 0)');
+            ctx.fillStyle = sunGlow;
+            ctx.beginPath();
+            ctx.arc(sunX, sunY, 45, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawCropField(ctx, x, y, w, h) {
+            // Soil background
+            ctx.fillStyle = '#3f2e21';
+            ctx.fillRect(x, y, w, h);
+
+            // Terraced field water channels
+            ctx.fillStyle = '#1e3a8a';
+            ctx.fillRect(x + 10, y + 15, w - 20, 8);
+            ctx.fillRect(x + 10, y + 45, w - 20, 8);
+
+            // Green Rice / Crop Rows
+            const cropGreen = '#10b981';
+            ctx.fillStyle = cropGreen;
+            for (let rx = x + 15; rx < x + w - 10; rx += 18) {
+                for (let ry of [y + 10, y + 40, y + 70]) {
+                    // Small crop sprouts
+                    ctx.beginPath();
+                    ctx.arc(rx, ry, 5, 0, Math.PI, true);
+                    ctx.fill();
+                    ctx.fillRect(rx - 1.5, ry, 3, 6);
+                }
+            }
+        }
+
+        function drawAqueduct(ctx, x1, y1, x2, y2, riverY) {
+            // Support pillars under trough
+            ctx.strokeStyle = '#4a3434';
+            ctx.lineWidth = 5;
+            for (let px = x1 + 60; px < x2; px += 80) {
+                ctx.beginPath();
+                ctx.moveTo(px, y1 + (y2 - y1) * ((px - x1) / (x2 - x1)));
+                ctx.lineTo(px, y2 + 80);
+                ctx.stroke();
+            }
+
+            // Wooden Trough Body
+            ctx.strokeStyle = '#854d0e';
+            ctx.lineWidth = 10;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+
+            // Water stream in trough and waterfall pouring down at end
+            if (state.flowRateLMin > 0.5 || state.angularVelocity > 0.05) {
+                // Channel water line
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 5;
+                ctx.beginPath();
+                ctx.moveTo(x1, y1 - 2);
+                ctx.lineTo(x2, y2 - 2);
+                ctx.stroke();
+
+                // Continuous Waterfall Stream Pouring down from trough outlet (x2, y2) to crop field below
+                const targetY = (typeof riverY === 'number' ? riverY : y2 + 50) - 5;
+                const waterfallGrad = ctx.createLinearGradient(x2, y2, x2, targetY);
+                waterfallGrad.addColorStop(0, 'rgba(56, 189, 248, 0.95)');
+                waterfallGrad.addColorStop(0.7, 'rgba(14, 165, 233, 0.85)');
+                waterfallGrad.addColorStop(1, 'rgba(186, 230, 253, 0.6)');
+
+                ctx.fillStyle = waterfallGrad;
+                const streamWidth = Math.min(12, Math.max(5, state.flowRateLMin * 0.15 + 4));
+                
+                // Continuous curved waterfall stream flowing downwards
+                ctx.beginPath();
+                ctx.moveTo(x2 - 2, y2 - 2);
+                ctx.quadraticCurveTo(x2 + 4, y2 + (targetY - y2) * 0.4, x2 + 5, targetY);
+                ctx.lineTo(x2 + 5 - streamWidth, targetY);
+                ctx.quadraticCurveTo(x2 + 4 - streamWidth, y2 + (targetY - y2) * 0.4, x2 - 2 - streamWidth, y2 - 2);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Label "高架木水渠"
+            ctx.fillStyle = '#fef08a';
+            ctx.font = '600 10px sans-serif';
+            ctx.fillText('高架水渠 (Trough)', x1 + 60, y1 - 10);
+        }
+
+        function drawRiver(ctx, w, h, riverY) {
+            // Deep water background
+            const riverGrad = ctx.createLinearGradient(0, riverY, 0, h);
+            riverGrad.addColorStop(0, '#0284c7');
+            riverGrad.addColorStop(0.5, '#0369a1');
+            riverGrad.addColorStop(1, '#0c4a6e');
+            ctx.fillStyle = riverGrad;
+            ctx.fillRect(0, riverY, w, h - riverY);
+
+            // Animated wave currents moving Left-to-Right
+            ctx.strokeStyle = 'rgba(186, 230, 253, 0.4)';
+            ctx.lineWidth = 2;
+            const flowOffset = (state.simTime * state.riverSpeed * 40) % 60;
+
+            for (let ry = riverY + 12; ry < h; ry += 18) {
+                ctx.beginPath();
+                for (let rx = -60 + flowOffset; rx < w + 60; rx += 40) {
+                    ctx.quadraticCurveTo(rx + 10, ry - 4, rx + 20, ry);
+                    ctx.quadraticCurveTo(rx + 30, ry + 4, rx + 40, ry);
+                }
+                ctx.stroke();
+            }
+
+            // Flow Direction Indicator Arrows
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.font = 'bold 11px font-mono';
+            ctx.fillText(`水流方向 (V = ${state.riverSpeed.toFixed(1)} m/s) ➔➔`, 30, riverY + 30);
+        }
+
+        function drawScaffolding(ctx, axleX, axleY, riverY) {
+            ctx.strokeStyle = '#5c3a21';
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round';
+
+            // Left A-Frame Leg
+            ctx.beginPath();
+            ctx.moveTo(axleX - 55, riverY + 20);
+            ctx.lineTo(axleX, axleY);
+            ctx.stroke();
+
+            // Right A-Frame Leg
+            ctx.beginPath();
+            ctx.moveTo(axleX + 55, riverY + 20);
+            ctx.lineTo(axleX, axleY);
+            ctx.stroke();
+
+            // Cross Beam
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#4a3434';
+            ctx.beginPath();
+            ctx.moveTo(axleX - 35, axleY + 45);
+            ctx.lineTo(axleX + 35, axleY + 45);
+            ctx.stroke();
+
+            // Axle Iron Hub Ring
+            ctx.fillStyle = '#27272a';
+            ctx.beginPath();
+            ctx.arc(axleX, axleY, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#71717a';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+
+        function drawWaterWheel(ctx, cx, cy, R, troughX, troughY) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(state.angle);
+
+            // Outer Wooden Rim (Double Ring)
+            ctx.strokeStyle = '#78350f';
+            ctx.lineWidth = 7;
+            ctx.beginPath();
+            ctx.arc(0, 0, R, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#92400e';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(0, 0, R * 0.88, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Radial Wooden Spokes (輪輻)
+            const spokeCount = Math.max(8, state.bucketCount);
+            ctx.strokeStyle = '#581c87';
+            ctx.strokeStyle = '#78350f';
+            ctx.lineWidth = 3;
+
+            for (let i = 0; i < spokeCount; i++) {
+                const a = (i * Math.PI * 2) / spokeCount;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(Math.cos(a) * R, Math.sin(a) * R);
+                ctx.stroke();
+            }
+
+            // Center Wheel Hub
+            ctx.fillStyle = '#451a03';
+            ctx.beginPath();
+            ctx.arc(0, 0, R * 0.18, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Draw Paddles & Bamboo Buckets on outer rim
+            state.buckets.forEach((bucket, idx) => {
+                const bAngle = bucket.offsetAngle;
+                const bx = Math.cos(bAngle) * R;
+                const by = Math.sin(bAngle) * R;
+
+                ctx.save();
+                ctx.translate(bx, by);
+                ctx.rotate(bAngle);
+
+                // 1. Undershot Radial Wooden Paddle (水板/槳葉)
+                ctx.fillStyle = '#78350f';
+                ctx.fillRect(0, -4, R * 0.22, 8);
+                ctx.strokeStyle = '#451a03';
+                ctx.strokeRect(0, -4, R * 0.22, 8);
+
+                // 2. Bamboo Tube Bucket (竹筒) scaled proportionally
+                ctx.save();
+                ctx.rotate(Math.PI / 5); // 36-degree tilt for historical Noria scoop angle
+
+                // Bamboo cylinder frame
+                const bWidth = Math.max(10, R * 0.075);
+                const bHeight = Math.max(22, R * 0.17);
+                ctx.fillStyle = '#65a30d'; // Bamboo green
+                ctx.fillRect(-bWidth / 2, -bHeight / 2, bWidth, bHeight);
+                ctx.strokeStyle = '#3f6212';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(-bWidth / 2, -bHeight / 2, bWidth, bHeight);
+
+                // Bamboo node ring lines
+                ctx.beginPath();
+                ctx.moveTo(-bWidth / 2, 0);
+                ctx.lineTo(bWidth / 2, 0);
+                ctx.stroke();
+
+                // Water inside bucket indicator
+                if (bucket.waterLevel > 0) {
+                    ctx.fillStyle = '#0ea5e9';
+                    const wH = bHeight * bucket.waterLevel * 0.85;
+                    ctx.fillRect(-bWidth / 2 + 2, bHeight / 2 - wH - 2, bWidth - 4, wH);
+                }
+
+                ctx.restore(); // Restore bucket tilt
+                ctx.restore(); // Restore bucket pos
+            });
+
+            ctx.restore(); // Restore wheel rotation
+        }
+
+        function drawPhysicsVectors(ctx, cx, cy, R, riverY) {
+            ctx.save();
+
+            // 1. River Impulse Force Vector (Bottom of wheel)
+            const bottomY = cy + R * 0.85;
+            ctx.strokeStyle = '#38bdf8';
+            ctx.fillStyle = '#38bdf8';
+            ctx.lineWidth = 3;
+
+            // Draw Arrow (Left to Right)
+            ctx.beginPath();
+            ctx.moveTo(cx - 70, bottomY);
+            ctx.lineTo(cx + 40, bottomY);
+            ctx.stroke();
+            
+            // Arrow head
+            ctx.beginPath();
+            ctx.moveTo(cx + 40, bottomY - 6);
+            ctx.lineTo(cx + 54, bottomY);
+            ctx.lineTo(cx + 40, bottomY + 6);
+            ctx.closePath();
+            ctx.fill();
+            ctx.font = 'bold 11px sans-serif';
+            ctx.fillText('水流衝擊力 F_hydro', cx - 65, bottomY - 10);
+
+            // 2. Gravity Downward Vectors on Rising Right Side
+            ctx.strokeStyle = '#f59e0b';
+            ctx.fillStyle = '#f59e0b';
+            ctx.lineWidth = 2;
+            const rightX = cx + R * 0.7;
+            const rightY = cy;
+
+            ctx.beginPath();
+            ctx.moveTo(rightX, rightY);
+            ctx.lineTo(rightX, rightY + 45);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(rightX - 5, rightY + 45);
+            ctx.lineTo(rightX, rightY + 55);
+            ctx.lineTo(rightX + 5, rightY + 45);
+            ctx.closePath();
+            ctx.fill();
+            ctx.fillText('竹筒重力阻力 mg', rightX + 10, rightY + 30);
+
+            // 3. Rotation Direction Arc Arrow (Counter-Clockwise)
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(cx, cy, R + 25, Math.PI * 0.2, Math.PI * 1.4, true); // CCW arc
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawAnnotationsOverlay(ctx, cx, cy, R, riverY, tx1, ty1, tx2, ty2) {
+            const steps = [
+                { num: 1, x: cx, y: riverY + 10, title: '1. 水流衝擊' },
+                { num: 2, x: cx + R * 0.7, y: riverY - 15, title: '2. 竹筒汲水' },
+                { num: 3, x: cx + R * 0.85, y: cy, title: '3. 克服重力' },
+                { num: 4, x: cx - R * 0.25, y: cy - R * 0.95, title: '4. 高位傾瀉' },
+                { num: 5, x: tx2 + 10, y: ty2 - 25, title: '5. 水流傾瀉入田' }
+            ];
+
+            steps.forEach(s => {
+                const isActive = state.activeStep === s.num;
+                ctx.save();
+                
+                // Pulsing outer circle if active
+                if (isActive) {
+                    ctx.strokeStyle = '#fbbf24';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(s.x, s.y, 16, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                // Inner Badge Circle
+                ctx.fillStyle = isActive ? '#f59e0b' : '#1e293b';
+                ctx.strokeStyle = isActive ? '#fff' : '#fbbf24';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, 11, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+
+                // Number text
+                ctx.fillStyle = isActive ? '#0f172a' : '#fbbf24';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(s.num, s.x, s.y);
+
+                // Label tag
+                ctx.font = '600 11px sans-serif';
+                ctx.fillStyle = '#f8fafc';
+                ctx.shadowColor = 'rgba(0,0,0,0.8)';
+                ctx.shadowBlur = 4;
+                ctx.fillText(s.title, s.x, s.y - 18);
+
+                ctx.restore();
+            });
+        }
+
+        // --- UI Binding & Event Listeners ---
+
+        function updateUI() {
+            document.getElementById('overlay-rpm').textContent = state.rpm.toFixed(1);
+            document.getElementById('overlay-flow').textContent = state.flowRateLMin.toFixed(1);
+            
+            document.getElementById('metric-rpm').textContent = state.rpm.toFixed(1);
+            document.getElementById('metric-flow').textContent = state.flowRateLMin.toFixed(1);
+            document.getElementById('metric-eff').textContent = state.efficiency.toFixed(1) + '%';
+            document.getElementById('bar-eff').style.width = Math.min(100, state.efficiency * 2.5) + '%';
+            document.getElementById('metric-total-water').textContent = Math.floor(state.totalWaterLifted) + ' L';
+
+            // Simulation time string
+            const mins = Math.floor(state.simTime / 60).toString().padStart(2, '0');
+            const secs = Math.floor(state.simTime % 60).toString().padStart(2, '0');
+            document.getElementById('text-sim-time').textContent = `${mins}:${secs}`;
+        }
+
+        // Bind Sliders
+        const sliderRiver = document.getElementById('input-river-speed');
+        sliderRiver.addEventListener('input', (e) => {
+            state.riverSpeed = parseFloat(e.target.value);
+            document.getElementById('val-river-speed').textContent = state.riverSpeed.toFixed(1) + ' m/s';
+        });
+
+        const sliderBuckets = document.getElementById('input-bucket-count');
+        sliderBuckets.addEventListener('input', (e) => {
+            state.bucketCount = parseInt(e.target.value, 10);
+            document.getElementById('val-bucket-count').textContent = state.bucketCount + ' 個';
+            initBuckets();
+        });
+
+        const sliderCapacity = document.getElementById('input-bucket-capacity');
+        sliderCapacity.addEventListener('input', (e) => {
+            state.bucketCapacity = parseFloat(e.target.value);
+            document.getElementById('val-bucket-capacity').textContent = state.bucketCapacity.toFixed(1) + ' L';
+        });
+
+        const sliderRadius = document.getElementById('input-wheel-radius');
+        sliderRadius.addEventListener('input', (e) => {
+            state.wheelDiameter = parseFloat(e.target.value);
+            document.getElementById('val-wheel-radius').textContent = state.wheelDiameter.toFixed(1) + ' m';
+        });
+
+        // Controls
+        const btnPlayPause = document.getElementById('btn-play-pause');
+        btnPlayPause.addEventListener('click', () => {
+            state.isPaused = !state.isPaused;
+            const playIcon = document.getElementById('play-icon');
+            const btnText = document.getElementById('play-btn-text');
+            const statusText = document.getElementById('status-state-text');
+
+            if (state.isPaused) {
+                playIcon.className = 'fa-solid fa-play';
+                btnText.textContent = '繼續模擬';
+                statusText.textContent = '已暫停';
+                statusText.className = 'text-amber-400 font-semibold';
+            } else {
+                playIcon.className = 'fa-solid fa-pause';
+                btnText.textContent = '暫停模擬';
+                statusText.textContent = '運轉中';
+                statusText.className = 'text-emerald-400 font-semibold';
+            }
+        });
+
+        document.getElementById('btn-step').addEventListener('click', () => {
+            state.isPaused = true;
+            document.getElementById('play-icon').className = 'fa-solid fa-play';
+            document.getElementById('play-btn-text').textContent = '繼續模擬';
+            updatePhysics(0.08);
+            render();
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            state.angle = 0;
+            state.angularVelocity = 0;
+            state.totalWaterLifted = 0;
+            state.simTime = 0;
+            initBuckets();
+        });
+
+        document.getElementById('select-time-scale').addEventListener('change', (e) => {
+            state.timeScale = parseFloat(e.target.value);
+        });
+
+        // Toggle Buttons
+        document.getElementById('btn-toggle-vectors').addEventListener('click', function() {
+            state.showVectors = !state.showVectors;
+            this.classList.toggle('bg-amber-600/40', state.showVectors);
+        });
+
+        document.getElementById('btn-toggle-annotations').addEventListener('click', function() {
+            state.showAnnotations = !state.showAnnotations;
+            this.classList.toggle('bg-amber-600/40', state.showAnnotations);
+        });
+
+        document.getElementById('btn-toggle-particles').addEventListener('click', function() {
+            state.showParticles = !state.showParticles;
+            this.classList.toggle('bg-sky-600/40', state.showParticles);
+        });
+
+        // Presets
+        document.getElementById('btn-preset-standard').addEventListener('click', () => {
+            state.riverSpeed = 2.4;
+            state.bucketCount = 12;
+            state.bucketCapacity = 6.0;
+            state.wheelDiameter = 4.2;
+            sliderRiver.value = 2.4;
+            sliderBuckets.value = 12;
+            sliderCapacity.value = 6.0;
+            sliderRadius.value = 4.2;
+            document.getElementById('val-river-speed').textContent = '2.4 m/s';
+            document.getElementById('val-bucket-count').textContent = '12 個';
+            document.getElementById('val-bucket-capacity').textContent = '6.0 L';
+            document.getElementById('val-wheel-radius').textContent = '4.2 m';
+            initBuckets();
+        });
+
+        document.getElementById('btn-preset-flood').addEventListener('click', () => {
+            state.riverSpeed = 4.2;
+            state.bucketCount = 16;
+            state.bucketCapacity = 8.0;
+            sliderRiver.value = 4.2;
+            sliderBuckets.value = 16;
+            sliderCapacity.value = 8.0;
+            document.getElementById('val-river-speed').textContent = '4.2 m/s';
+            document.getElementById('val-bucket-count').textContent = '16 個';
+            document.getElementById('val-bucket-capacity').textContent = '8.0 L';
+            initBuckets();
+        });
+
+        document.getElementById('btn-preset-drought').addEventListener('click', () => {
+            state.riverSpeed = 1.2;
+            state.bucketCount = 8;
+            state.bucketCapacity = 4.0;
+            sliderRiver.value = 1.2;
+            sliderBuckets.value = 8;
+            sliderCapacity.value = 4.0;
+            document.getElementById('val-river-speed').textContent = '1.2 m/s';
+            document.getElementById('val-bucket-count').textContent = '8 個';
+            document.getElementById('val-bucket-capacity').textContent = '4.0 L';
+            initBuckets();
+        });
+
+        // Info Modal Handling
+        const infoModal = document.getElementById('info-modal');
+        document.getElementById('btn-open-info').addEventListener('click', () => infoModal.classList.remove('hidden'));
+        document.getElementById('btn-close-modal').addEventListener('click', () => infoModal.classList.add('hidden'));
+        document.getElementById('btn-close-modal-bottom').addEventListener('click', () => infoModal.classList.add('hidden'));
+
+        // Main Loop
+        let lastTime = performance.now();
+        function gameLoop(now) {
+            const dt = Math.min(0.1, (now - lastTime) / 1000);
+            lastTime = now;
+
+            updatePhysics(dt);
+            render();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.onload = function() {
+            requestAnimationFrame(gameLoop);
+        };
+
+    </script>
+</body>
+</html>
