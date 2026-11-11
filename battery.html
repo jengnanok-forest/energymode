@@ -1,0 +1,1418 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="h-full select-none">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>電池與燈泡串並聯互動電路實驗室</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        lab: {
+                            bg: '#0f172a',
+                            panel: '#1e293b',
+                            card: '#334155',
+                            accent: '#38bdf8',
+                            warning: '#ef4444',
+                            gold: '#f59e0b'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* iPad Safari 觸控與縮放防護 */
+        * {
+            touch-action: manipulation;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        svg {
+            touch-action: none;
+        }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* 畫布網格背景 */
+        .grid-bg {
+            background-size: 32px 32px;
+            background-image: radial-gradient(circle, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+        }
+
+        /* 閃爍短路導線動畫 */
+        @keyframes short-flash {
+            0%, 100% { stroke: #ef4444; stroke-width: 6px; filter: drop-shadow(0 0 8px #ef4444); }
+            50% { stroke: #fef08a; stroke-width: 8px; filter: drop-shadow(0 0 16px #f59e0b); }
+        }
+        .short-circuit-wire {
+            animation: short-flash 0.4s infinite ease-in-out;
+        }
+
+        /* 燈泡發光 Glow 效果 */
+        .glow-200 { filter: drop-shadow(0 0 25px #fbbf24) drop-shadow(0 0 50px #f59e0b) brightness(1.3); }
+        .glow-100 { filter: drop-shadow(0 0 15px #fde047) drop-shadow(0 0 30px #eab308); }
+        .glow-50  { filter: drop-shadow(0 0 8px #ca8a04); opacity: 0.85; }
+        .glow-0   { opacity: 0.4; }
+    </style>
+</head>
+<body class="h-full bg-lab-bg text-slate-100 flex flex-col font-sans overflow-hidden">
+
+    <!-- 頂部導航與主控制列 -->
+    <header class="h-16 bg-slate-900 border-b border-slate-800 px-4 flex items-center justify-between shrink-0 z-20">
+        <!-- 標題與圖示 -->
+        <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-slate-950 font-bold text-xl shadow-lg shadow-amber-500/20">
+                ⚡
+            </div>
+            <div>
+                <h1 class="text-base md:text-lg font-bold bg-gradient-to-r from-amber-200 via-yellow-100 to-sky-200 bg-clip-text text-transparent">
+                    電路實驗室
+                </h1>
+                <p class="text-xs text-slate-400 hidden sm:block">電池與燈泡串並聯教學 (iPad 觸控優化版)</p>
+            </div>
+        </div>
+
+        <!-- 中間分頁頁籤 (Tabs) -->
+        <nav class="flex bg-slate-800/80 p-1 rounded-xl border border-slate-700/60">
+            <button id="tab-btn-preset" onclick="switchTab('preset')" class="px-3 py-2 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-all duration-200 flex items-center space-x-1 bg-amber-500 text-slate-950 shadow-md font-bold">
+                <span>🧪</span>
+                <span>電路教學</span>
+            </button>
+            <button id="tab-btn-assembly" onclick="switchTab('assembly')" class="px-3 py-2 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium text-slate-300 hover:text-white transition-all duration-200 flex items-center space-x-1">
+                <span>🛠️</span>
+                <span>電路組裝</span>
+            </button>
+            <button id="tab-btn-trouble" onclick="switchTab('trouble')" class="px-3 py-2 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium text-slate-300 hover:text-white transition-all duration-200 flex items-center space-x-1">
+                <span>🔧</span>
+                <span>故障排除</span>
+            </button>
+            <button id="tab-btn-theory" onclick="switchTab('theory')" class="px-3 py-2 md:px-4 md:py-2 rounded-lg text-xs md:text-sm font-medium text-slate-300 hover:text-white transition-all duration-200 flex items-center space-x-1">
+                <span>📊</span>
+                <span>原理解析</span>
+            </button>
+        </nav>
+
+        <!-- 執行總開關 (Master Run Switch) -->
+        <div class="flex items-center space-x-3">
+            <div class="flex flex-col items-end hidden md:flex">
+                <span class="text-xs text-slate-400">電源開關狀態</span>
+                <span id="power-status-text" class="text-xs font-bold text-slate-400">已中斷 (STOP)</span>
+            </div>
+            <button id="run-toggle-btn" onclick="togglePower()" class="h-11 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center space-x-2 shadow-lg shadow-emerald-600/30 active:scale-95 transition-all cursor-pointer">
+                <div id="power-led" class="w-3 h-3 rounded-full bg-slate-400 shadow-inner"></div>
+                <span id="power-btn-label">通電執行 (RUN)</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- 主要內容區域 -->
+    <main class="flex-1 relative overflow-hidden flex">
+
+        <!-- ==================== 分頁一：電路教學區 ==================== -->
+        <section id="tab-preset" class="w-full h-full flex flex-col md:flex-row relative">
+            <!-- 左側情境按鈕選單 -->
+            <div class="w-full md:w-80 bg-slate-900/90 border-r border-slate-800 p-4 flex flex-col space-y-3 z-10 shrink-0 overflow-y-auto no-scrollbar">
+                <h2 class="text-xs font-bold tracking-wider text-slate-400 uppercase">經典電路教學</h2>
+                
+                <button onclick="loadPreset(1)" class="preset-card text-left p-3.5 rounded-xl border border-slate-700/70 bg-slate-800/80 hover:bg-slate-800 hover:border-amber-500/50 transition-all flex flex-col space-y-1 group cursor-pointer active:scale-[0.98]">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-amber-300 text-sm">1. 單一電路</span>
+                        <span class="text-xs px-2 py-0.5 rounded bg-slate-700 text-amber-300">🌟🌟 標準亮</span>
+                    </div>
+                    <p class="text-xs text-slate-400">1 顆電池 + 1 顆燈泡。</p>
+                </button>
+
+                <button onclick="loadPreset(2)" class="preset-card text-left p-3.5 rounded-xl border border-slate-700/70 bg-slate-800/80 hover:bg-slate-800 hover:border-amber-500/50 transition-all flex flex-col space-y-1 group cursor-pointer active:scale-[0.98]">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-amber-300 text-sm">2. 電池串聯</span>
+                        <span class="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">🌟🌟🌟🌟 極亮</span>
+                    </div>
+                    <p class="text-xs text-slate-400">2 顆電池 (+接-) + 1 顆燈泡。</p>
+                </button>
+
+                <button onclick="loadPreset(3)" class="preset-card text-left p-3.5 rounded-xl border border-slate-700/70 bg-slate-800/80 hover:bg-slate-800 hover:border-amber-500/50 transition-all flex flex-col space-y-1 group cursor-pointer active:scale-[0.98]">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-amber-300 text-sm">3. 電池並聯</span>
+                        <span class="text-xs px-2 py-0.5 rounded bg-slate-700 text-amber-300">🌟🌟 標準亮</span>
+                    </div>
+                    <p class="text-xs text-slate-400">2 顆電池並排 + 1 顆燈泡。</p>
+                </button>
+
+                <button onclick="loadPreset(4)" class="preset-card text-left p-3.5 rounded-xl border border-slate-700/70 bg-slate-800/80 hover:bg-slate-800 hover:border-amber-500/50 transition-all flex flex-col space-y-1 group cursor-pointer active:scale-[0.98]">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-amber-300 text-sm">4. 燈泡串聯</span>
+                        <span class="text-xs px-2 py-0.5 rounded bg-amber-900/40 text-amber-400">🌟 偏暗</span>
+                    </div>
+                    <p class="text-xs text-slate-400">1 顆電池 + 2 顆燈泡串接。</p>
+                </button>
+
+                <button onclick="loadPreset(5)" class="preset-card text-left p-3.5 rounded-xl border border-slate-700/70 bg-slate-800/80 hover:bg-slate-800 hover:border-amber-500/50 transition-all flex flex-col space-y-1 group cursor-pointer active:scale-[0.98]">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-amber-300 text-sm">5. 燈泡並聯</span>
+                        <span class="text-xs px-2 py-0.5 rounded bg-slate-700 text-amber-300">均為 🌟🌟 標準</span>
+                    </div>
+                    <p class="text-xs text-slate-400">1 顆電池 + 2 顆燈泡分路。</p>
+                </button>
+
+                <!-- 新增第 6 個預設項目：電池短路 -->
+                <button onclick="loadPreset(6)" class="preset-card text-left p-3.5 rounded-xl border border-rose-800/80 bg-rose-950/40 hover:bg-rose-900/60 hover:border-rose-500 transition-all flex flex-col space-y-1 group cursor-pointer active:scale-[0.98]">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-rose-400 text-sm">6. ⚠️ 電池短路 (單電線與迴路)</span>
+                        <span class="text-xs px-2 py-0.5 rounded bg-rose-900/80 text-rose-200 font-bold">💥 極危險</span>
+                    </div>
+                    <p class="text-xs text-rose-300/80">包含一條電線直連正負極圖示與短路迴路。</p>
+                </button>
+
+                <!-- 第 7 個預設項目：單電池 + 單電線短路 -->
+                <button onclick="loadPreset(7)" class="preset-card text-left p-3.5 rounded-xl border border-rose-800/80 bg-rose-950/40 hover:bg-rose-900/60 hover:border-rose-500 transition-all flex flex-col space-y-1 group cursor-pointer active:scale-[0.98]">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-rose-400 text-sm">7. ⚠️ 一電池 + 一電線短路</span>
+                        <span class="text-xs px-2 py-0.5 rounded bg-rose-900/80 text-rose-200 font-bold">💥 極危險</span>
+                    </div>
+                    <p class="text-xs text-rose-300/80">只有 1 顆電池與 1 條電線，電線直連正負極。</p>
+                </button>
+
+                <!-- 提示說明面板 -->
+                <div class="mt-auto p-3.5 rounded-xl bg-slate-800/50 border border-slate-700/50">
+                    <h3 class="text-xs font-bold text-sky-300 flex items-center space-x-1 mb-1">
+                        <span>💡</span><span>觀察重點提示</span>
+                    </h3>
+                    <p id="preset-hint-text" class="text-xs text-slate-300 leading-relaxed">
+                        點擊情境查看電路，按下右上角「通電執行」即可觀察燈泡亮度與電流（從正極流向負極）！
+                    </p>
+                </div>
+            </div>
+
+            <!-- 電路教學畫布區域 -->
+            <div class="flex-1 relative bg-slate-950 grid-bg overflow-hidden flex flex-col">
+                <svg id="svg-canvas-preset" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet" class="w-full h-full absolute inset-0 cursor-crosshair"></svg>
+            </div>
+        </section>
+
+        <!-- ==================== 分頁二：電路組裝區 (初始完全空白) ==================== -->
+        <section id="tab-assembly" class="w-full h-full flex flex-col hidden relative">
+            <!-- 頂部元件與電線工具列 -->
+            <div class="h-16 bg-slate-900/90 border-b border-slate-800 px-4 flex items-center justify-between z-10 shrink-0 space-x-2 overflow-x-auto no-scrollbar">
+                <!-- 元件投放按鈕 (限制：電池 2 顆、燈泡 2 顆) -->
+                <div class="flex items-center space-x-2">
+                    <button id="add-bat-btn" onclick="spawnComponent('battery')" class="h-11 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs md:text-sm font-semibold flex items-center space-x-1.5 active:scale-95 transition-all">
+                        <span class="text-base">🔋</span>
+                        <span id="bat-btn-label">+ 電池 (0/2)</span>
+                    </button>
+                    <button id="add-bulb-btn" onclick="spawnComponent('bulb')" class="h-11 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs md:text-sm font-semibold flex items-center space-x-1.5 active:scale-95 transition-all">
+                        <span class="text-base">💡</span>
+                        <span id="bulb-btn-label">+ 燈泡 (0/2)</span>
+                    </button>
+                    <button id="add-switch-btn" onclick="spawnComponent('switch')" class="h-11 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs md:text-sm font-semibold flex items-center space-x-1.5 active:scale-95 transition-all">
+                        <span class="text-base">🔌</span>
+                        <span id="switch-btn-label">+ 開關 (0/2)</span>
+                    </button>
+                    <button onclick="spawnWire()" class="h-11 px-3.5 rounded-xl bg-sky-950/80 hover:bg-sky-900 border border-sky-700 text-sky-200 text-xs md:text-sm font-semibold flex items-center space-x-1.5 active:scale-95 transition-all shadow-md shadow-sky-950/50">
+                        <span class="text-base">⚡</span>
+                        <span>+ 電線 (可彎曲)</span>
+                    </button>
+                </div>
+
+                <!-- 輔助操控區 -->
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs text-slate-400 hidden lg:inline">提示：可直接將電池與燈泡端點靠攏對接，或用電線串接！</span>
+                    <button onclick="clearAssemblyCanvas()" class="h-11 px-3.5 rounded-xl bg-rose-950/60 hover:bg-rose-900 border border-rose-800/80 text-rose-300 text-xs md:text-sm font-semibold flex items-center space-x-1 active:scale-95 transition-all">
+                        <span>🗑️</span>
+                        <span>清空組裝畫布</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 組裝畫布區域 (初始空白) -->
+            <div class="flex-1 relative bg-slate-950 grid-bg overflow-hidden">
+                <svg id="svg-canvas-assembly" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet" class="w-full h-full absolute inset-0 cursor-crosshair"></svg>
+            </div>
+        </section>
+
+        <!-- ==================== 分頁：故障排除 ==================== -->
+        <section id="tab-trouble" class="w-full h-full flex flex-col hidden relative">
+            <div class="h-16 bg-slate-900/90 border-b border-slate-800 px-4 flex items-center justify-between z-10 shrink-0 space-x-2 overflow-x-auto no-scrollbar">
+                <div class="flex items-center space-x-2">
+                    <span class="text-xs font-bold text-slate-400 shrink-0">故障情境：</span>
+                    <button id="trouble-btn-1" onclick="loadTrouble(1)" class="trouble-btn h-11 px-3 rounded-xl border border-slate-700 text-xs md:text-sm font-semibold shrink-0">1 斷線</button>
+                    <button id="trouble-btn-2" onclick="loadTrouble(2)" class="trouble-btn h-11 px-3 rounded-xl border border-slate-700 text-xs md:text-sm font-semibold shrink-0">2 開關沒關</button>
+                    <button id="trouble-btn-3" onclick="loadTrouble(3)" class="trouble-btn h-11 px-3 rounded-xl border border-slate-700 text-xs md:text-sm font-semibold shrink-0">3 少一條線</button>
+                    <button id="trouble-btn-4" onclick="loadTrouble(4)" class="trouble-btn h-11 px-3 rounded-xl border border-slate-700 text-xs md:text-sm font-semibold shrink-0">4 燈泡被短接</button>
+                    <button id="trouble-btn-5" onclick="loadTrouble(5)" class="trouble-btn h-11 px-3 rounded-xl border border-slate-700 text-xs md:text-sm font-semibold shrink-0">5 並聯一顆不亮</button>
+                    <button id="trouble-btn-6" onclick="loadTrouble(6)" class="trouble-btn h-11 px-3 rounded-xl border border-slate-700 text-xs md:text-sm font-semibold shrink-0">6 電池間斷開</button>
+                </div>
+                <div class="flex items-center space-x-2 shrink-0">
+                    <button onclick="spawnWire()" class="h-11 px-3.5 rounded-xl bg-sky-950/80 hover:bg-sky-900 border border-sky-700 text-sky-200 text-xs md:text-sm font-semibold active:scale-95 transition-all">⚡ + 電線</button>
+                    <button onclick="toggleTroubleHint()" class="h-11 px-3.5 rounded-xl bg-amber-950/60 hover:bg-amber-900 border border-amber-700 text-amber-200 text-xs md:text-sm font-semibold active:scale-95 transition-all">💡 提示</button>
+                    <button onclick="loadTrouble(activeTroubleId)" class="h-11 px-3.5 rounded-xl bg-rose-950/60 hover:bg-rose-900 border border-rose-800/80 text-rose-300 text-xs md:text-sm font-semibold active:scale-95 transition-all">↺ 重置</button>
+                </div>
+            </div>
+            <div class="px-4 py-2.5 bg-slate-900/70 border-b border-slate-800 z-10 shrink-0 space-y-1.5">
+                <p id="trouble-desc" class="text-xs md:text-sm text-slate-200"></p>
+                <p id="trouble-hint" class="hidden text-xs md:text-sm text-amber-200 bg-amber-950/40 border border-amber-800/60 rounded-lg px-3 py-1.5"></p>
+                <p id="trouble-status" class="text-xs md:text-sm font-bold"></p>
+            </div>
+            <div class="flex-1 relative bg-slate-950 grid-bg overflow-hidden">
+                <svg id="svg-canvas-trouble" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid meet" class="w-full h-full absolute inset-0 cursor-crosshair"></svg>
+            </div>
+        </section>
+
+        <!-- ==================== 分頁三：原理解析 (極簡視覺圖表) ==================== -->
+        <section id="tab-theory" class="w-full h-full flex-1 bg-slate-900 p-4 md:p-8 overflow-y-auto hidden">
+            <div class="max-w-5xl mx-auto space-y-6 pb-12">
+                <!-- 標題 -->
+                <div>
+                    <h2 class="text-2xl font-bold text-amber-300">電路特性與燈泡亮度比較對照表</h2>
+                    <p class="text-sm text-slate-400 mt-1">圖表化呈現 5 種經典電路的亮度比例與電池電量消耗速度。</p>
+                </div>
+
+                <!-- 視覺化圖表與對照表格 -->
+                <div class="overflow-x-auto rounded-2xl border border-slate-700 bg-slate-800/80 shadow-xl">
+                    <table class="w-full text-left border-collapse min-w-[560px]">
+                        <thead>
+                            <tr class="bg-slate-900/90 text-slate-300 border-b border-slate-700 text-xs font-bold uppercase tracking-wider">
+                                <th class="p-4">電路類型</th>
+                                <th class="p-4">燈泡亮度評級</th>
+                                <th class="p-4 min-w-[180px]">相對發光比例</th>
+                                <th class="p-4 min-w-[200px]">電池電量消耗比較</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700/60 text-xs md:text-sm">
+                            <!-- 1. 單一通路 -->
+                            <tr class="hover:bg-slate-700/40 transition-colors">
+                                <td class="p-4 font-bold text-sky-300 flex items-center space-x-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+                                    <span>1. 單一通路 (1電池 + 1燈泡)</span>
+                                </td>
+                                <td class="p-4 font-semibold text-amber-300">🌟🌟 (標準亮)</td>
+                                <td class="p-4">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-700">
+                                            <div class="bg-gradient-to-r from-amber-500 to-yellow-400 h-full rounded-full" style="width: 50%;"></div>
+                                        </div>
+                                        <span class="text-xs text-amber-300 font-mono font-bold">100%</span>
+                                    </div>
+                                </td>
+                                <td class="p-4 text-slate-200 leading-relaxed">燈泡獲得完整的 1.5V，電池供應基準電流，所以<strong>消耗速度為基準</strong></td>
+                            </tr>
+                            <!-- 2. 電池串聯 -->
+                            <tr class="hover:bg-slate-700/40 transition-colors bg-amber-500/5">
+                                <td class="p-4 font-bold text-amber-400 flex items-center space-x-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse"></span>
+                                    <span>2. 電池串聯 (2電池 + 1燈泡)</span>
+                                </td>
+                                <td class="p-4 font-semibold text-amber-300">🌟🌟🌟🌟 (極亮)</td>
+                                <td class="p-4">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-700">
+                                            <div class="bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-200 h-full rounded-full shadow-md shadow-amber-400/50" style="width: 100%;"></div>
+                                        </div>
+                                        <span class="text-xs text-amber-300 font-mono font-bold">200%</span>
+                                    </div>
+                                </td>
+                                <td class="p-4 text-slate-200 leading-relaxed">電壓加倍成 3.0V，所以<strong>更亮</strong>，但每顆電池都要供應<strong>兩倍電流</strong>，所以<strong>電池消耗得更快</strong></td>
+                            </tr>
+                            <!-- 3. 電池並聯 -->
+                            <tr class="hover:bg-slate-700/40 transition-colors">
+                                <td class="p-4 font-bold text-blue-300 flex items-center space-x-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-blue-400"></span>
+                                    <span>3. 電池並聯 (2電池 + 1燈泡)</span>
+                                </td>
+                                <td class="p-4 font-semibold text-amber-300">🌟🌟 (標準亮)</td>
+                                <td class="p-4">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-700">
+                                            <div class="bg-gradient-to-r from-blue-400 to-sky-300 h-full rounded-full" style="width: 50%;"></div>
+                                        </div>
+                                        <span class="text-xs text-blue-300 font-mono font-bold">100%</span>
+                                    </div>
+                                </td>
+                                <td class="p-4 text-slate-200 leading-relaxed">兩顆電池各負擔一半電流，所以<strong>用得更久</strong>，但不會更亮</td>
+                            </tr>
+                            <!-- 4. 燈泡串聯 -->
+                            <tr class="hover:bg-slate-700/40 transition-colors">
+                                <td class="p-4 font-bold text-indigo-300 flex items-center space-x-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-indigo-400"></span>
+                                    <span>4. 燈泡串聯 (1電池 + 2燈泡)</span>
+                                </td>
+                                <td class="p-4 font-semibold text-amber-400">🌟 (變暗)</td>
+                                <td class="p-4">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-700">
+                                            <div class="bg-amber-600 h-full rounded-full" style="width: 25%;"></div>
+                                        </div>
+                                        <span class="text-xs text-amber-400 font-mono font-bold">50%</span>
+                                    </div>
+                                </td>
+                                <td class="p-4 text-slate-200 leading-relaxed">兩顆燈泡平分電壓、電流剩一半，所以<strong>燈泡變暗</strong>，但<strong>電池用得更久</strong></td>
+                            </tr>
+                            <!-- 5. 燈泡並聯 -->
+                            <tr class="hover:bg-slate-700/40 transition-colors">
+                                <td class="p-4 font-bold text-emerald-300 flex items-center space-x-2">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+                                    <span>5. 燈泡並聯 (1電池 + 2燈泡)</span>
+                                </td>
+                                <td class="p-4 font-semibold text-amber-300">均為 🌟🌟 (標準亮)</td>
+                                <td class="p-4">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-700">
+                                            <div class="bg-gradient-to-r from-emerald-400 to-teal-300 h-full rounded-full" style="width: 50%;"></div>
+                                        </div>
+                                        <span class="text-xs text-emerald-300 font-mono font-bold">100%</span>
+                                    </div>
+                                </td>
+                                <td class="p-4 text-slate-200 leading-relaxed">每顆燈泡都有完整的 1.5V，但電池要供應<strong>兩倍電流</strong>，所以<strong>電池消耗得更快</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 極簡重點提示卡片 -->
+                <div class="p-4 rounded-2xl bg-rose-950/40 border border-rose-800/80 flex items-center justify-between text-xs text-rose-200">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-2xl">💥</span>
+                        <div>
+                            <p class="font-bold text-rose-300 text-sm">短路危險提醒 (Short Circuit)</p>
+                            <p class="text-slate-300">當電池正極 (+) 不經燈泡直連負極 (-)，電流瞬間過大造成危險，本系統會自動中斷並提出警告。</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ==================== 短路警報 Modal 視窗 ==================== -->
+    <div id="short-circuit-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 hidden">
+        <div class="bg-slate-900 border-2 border-rose-600 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl space-y-5 text-center transform transition-all scale-100">
+            <div class="w-16 h-16 rounded-full bg-rose-500/20 border border-rose-500 flex items-center justify-center text-3xl mx-auto animate-bounce">
+                💥
+            </div>
+            <div class="space-y-2">
+                <h3 class="text-xl font-bold text-rose-400">發生電路短路警告 (Short Circuit)！</h3>
+                <p class="text-xs md:text-sm text-slate-300 leading-relaxed">
+                    電池正極 (+) 在沒有經過燈泡（負載）的情況下被電線直接導通至負極 (-)！電流過大可能導致過熱與危險。
+                </p>
+            </div>
+            <div class="p-3 bg-rose-950/60 rounded-xl border border-rose-800 text-left text-xs text-rose-200 space-y-1">
+                <p class="font-bold">🔧 修正建議：</p>
+                <p>1. 檢查是否有電線直接將電池正極與負極相連。</p>
+                <p>2. 請將電線連接至燈泡兩端進行分流負載。</p>
+            </div>
+            <button onclick="dismissShortCircuitModal()" class="w-full py-3.5 rounded-xl bg-rose-600 hover:bg-rose-500 font-bold text-white text-sm shadow-lg shadow-rose-600/30 active:scale-95 transition-all cursor-pointer">
+                關閉電源並檢修電路
+            </button>
+        </div>
+    </div>
+
+    <!-- ==================== JavaScript Engine ==================== -->
+    <script>
+        // 全局狀態管理
+        let currentTab = 'preset';
+        let isPowerOn = false;
+        let activePresetId = 1;
+
+        // 獨立組件與電線資料庫
+        let presetComponents = [];
+        let presetWires = [];
+
+        let assemblyComponents = []; // 初始狀態：完全空白
+        let assemblyWires = [];      // 初始狀態：完全空白
+
+        let troubleComponents = [];
+        let troubleWires = [];
+        let activeTroubleId = 1;
+        let troubleSolved = false;
+
+        // 拖曳互動狀態
+        let draggedComponent = null;
+        let rotatingComponent = null;
+        let dragOffset = { x: 0, y: 0 };
+        let draggedWireNode = null; // { wireId, nodeType: 'start'|'end'|'cp' }
+
+        // 音效 Engine
+        let audioCtx = null;
+        function getAudioContext() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            return audioCtx;
+        }
+
+        function playSound(type) {
+            try {
+                const ctx = getAudioContext();
+                if (!ctx) return;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                if (type === 'click') {
+                    osc.frequency.setValueAtTime(400, ctx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(200, ctx.currentTime + 0.05);
+                    gain.gain.setValueAtTime(0.15, ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.05);
+                } else if (type === 'alert') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(800, ctx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(300, ctx.currentTime + 0.25);
+                    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0.01, ctx.currentTime + 0.25);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.25);
+                }
+            } catch (e) {}
+        }
+
+        // 當前畫布資料指標
+        function getActiveData() {
+            if (currentTab === 'preset') {
+                return { comps: presetComponents, wires: presetWires };
+            }
+            if (currentTab === 'trouble') {
+                return { comps: troubleComponents, wires: troubleWires };
+            }
+            return { comps: assemblyComponents, wires: assemblyWires };
+        }
+
+        // ==================== 電路教學預設情境載入 ====================
+        function loadPreset(id) {
+            activePresetId = id;
+            presetComponents = [];
+            presetWires = [];
+
+            const hintText = document.getElementById('preset-hint-text');
+
+            if (id === 1) { // 1. 單一電路
+                if (hintText) hintText.innerText = "1 顆電池與 1 顆燈泡形成單一迴路，燈泡呈現標準亮度 (🌟🌟)。";
+                presetComponents = [
+                    { id: 'b1', type: 'battery', x: 400, y: 340, rotation: 0 },
+                    { id: 'l1', type: 'bulb', x: 400, y: 130, rotation: 0 }
+                ];
+                presetWires = [
+                    { id: 'w1', start: { x: 460, y: 340, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 435, y: 170, snapComp: 'l1', snapTerm: 't2' }, cp: { x: 500, y: 255, isCustom: true } },
+                    { id: 'w2', start: { x: 340, y: 340, snapComp: 'b1', snapTerm: 'neg' }, end: { x: 365, y: 170, snapComp: 'l1', snapTerm: 't1' }, cp: { x: 300, y: 255, isCustom: true } }
+                ];
+            } else if (id === 2) { // 2. 電池串聯
+                if (hintText) hintText.innerText = "2 顆電池頭尾串聯，總電壓升至 3.0V，燈泡發出極亮強光 (🌟🌟🌟🌟)。";
+                presetComponents = [
+                    { id: 'b1', type: 'battery', x: 340, y: 340, rotation: 0 },
+                    { id: 'b2', type: 'battery', x: 480, y: 340, rotation: 0 },
+                    { id: 'l1', type: 'bulb', x: 410, y: 130, rotation: 0 }
+                ];
+                presetWires = [
+                    { id: 'w1', start: { x: 400, y: 340, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 420, y: 340, snapComp: 'b2', snapTerm: 'neg' }, cp: { x: 410, y: 385, isCustom: true } },
+                    { id: 'w2', start: { x: 540, y: 340, snapComp: 'b2', snapTerm: 'pos' }, end: { x: 445, y: 170, snapComp: 'l1', snapTerm: 't2' }, cp: { x: 560, y: 255, isCustom: true } },
+                    { id: 'w3', start: { x: 280, y: 340, snapComp: 'b1', snapTerm: 'neg' }, end: { x: 375, y: 170, snapComp: 'l1', snapTerm: 't1' }, cp: { x: 260, y: 255, isCustom: true } }
+                ];
+            } else if (id === 3) { // 3. 電池並聯
+                if (hintText) hintText.innerText = "2 顆電池並聯，電壓維持 1.5V，燈泡保持標準亮度 (🌟🌟)，使用時間加倍。";
+                presetComponents = [
+                    { id: 'b1', type: 'battery', x: 400, y: 290, rotation: 0 },
+                    { id: 'b2', type: 'battery', x: 400, y: 400, rotation: 0 },
+                    { id: 'l1', type: 'bulb', x: 400, y: 110, rotation: 0 }
+                ];
+                presetWires = [
+                    { id: 'w1', start: { x: 460, y: 290, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 460, y: 400, snapComp: 'b2', snapTerm: 'pos' }, cp: { x: 500, y: 345, isCustom: true } },
+                    { id: 'w2', start: { x: 340, y: 290, snapComp: 'b1', snapTerm: 'neg' }, end: { x: 340, y: 400, snapComp: 'b2', snapTerm: 'neg' }, cp: { x: 300, y: 345, isCustom: true } },
+                    { id: 'w3', start: { x: 460, y: 290, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 435, y: 150, snapComp: 'l1', snapTerm: 't2' }, cp: { x: 500, y: 220, isCustom: true } },
+                    { id: 'w4', start: { x: 340, y: 290, snapComp: 'b1', snapTerm: 'neg' }, end: { x: 365, y: 150, snapComp: 'l1', snapTerm: 't1' }, cp: { x: 300, y: 220, isCustom: true } }
+                ];
+            } else if (id === 4) { // 4. 燈泡串聯
+                if (hintText) hintText.innerText = "2 顆燈泡串聯平分電壓，電流減半，燈泡亮度變暗 (🌟)。";
+                presetComponents = [
+                    { id: 'b1', type: 'battery', x: 400, y: 350, rotation: 0 },
+                    { id: 'l1', type: 'bulb', x: 300, y: 130, rotation: 0 },
+                    { id: 'l2', type: 'bulb', x: 500, y: 130, rotation: 0 }
+                ];
+                presetWires = [
+                    { id: 'w1', start: { x: 460, y: 350, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 535, y: 170, snapComp: 'l2', snapTerm: 't2' }, cp: { x: 570, y: 260, isCustom: true } },
+                    { id: 'w2', start: { x: 465, y: 170, snapComp: 'l2', snapTerm: 't1' }, end: { x: 335, y: 170, snapComp: 'l1', snapTerm: 't2' }, cp: { x: 400, y: 230, isCustom: true } },
+                    { id: 'w3', start: { x: 265, y: 170, snapComp: 'l1', snapTerm: 't1' }, end: { x: 340, y: 350, snapComp: 'b1', snapTerm: 'neg' }, cp: { x: 230, y: 260, isCustom: true } }
+                ];
+            } else if (id === 5) { // 5. 燈泡並聯
+                if (hintText) hintText.innerText = "2 顆燈泡並聯各有獨立迴路，獲得相同全電壓，均維持標準亮度 (🌟🌟)。";
+                presetComponents = [
+                    { id: 'b1', type: 'battery', x: 400, y: 250, rotation: 0 },
+                    { id: 'l1', type: 'bulb', x: 400, y: 100, rotation: 0 },
+                    { id: 'l2', type: 'bulb', x: 400, y: 400, rotation: 180 }
+                ];
+                presetWires = [
+                    { id: 'w1', start: { x: 460, y: 250, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 435, y: 140, snapComp: 'l1', snapTerm: 't2' }, cp: { x: 500, y: 195, isCustom: true } },
+                    { id: 'w2', start: { x: 460, y: 250, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 435, y: 360, snapComp: 'l2', snapTerm: 't1' }, cp: { x: 500, y: 305, isCustom: true } },
+                    { id: 'w3', start: { x: 365, y: 140, snapComp: 'l1', snapTerm: 't1' }, end: { x: 340, y: 250, snapComp: 'b1', snapTerm: 'neg' }, cp: { x: 300, y: 195, isCustom: true } },
+                    { id: 'w4', start: { x: 365, y: 360, snapComp: 'l2', snapTerm: 't2' }, end: { x: 340, y: 250, snapComp: 'b1', snapTerm: 'neg' }, cp: { x: 300, y: 305, isCustom: true } }
+                ];
+            } else if (id === 6) { // 6. ⚠️ 電池短路
+                if (hintText) hintText.innerText = "⚠️ 電池正負極被電線直接連通，無負載分流導致短路警告！";
+                presetComponents = [
+                    { id: 'b1', type: 'battery', x: 400, y: 340, rotation: 0 },
+                    { id: 'l1', type: 'bulb', x: 400, y: 130, rotation: 0 }
+                ];
+                presetWires = [
+                    { id: 'w1', start: { x: 460, y: 340, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 340, y: 340, snapComp: 'b1', snapTerm: 'neg' }, cp: { x: 400, y: 440, isCustom: true } },
+                    { id: 'w2', start: { x: 460, y: 340, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 435, y: 170, snapComp: 'l1', snapTerm: 't2' }, cp: { x: 500, y: 255, isCustom: true } },
+                    { id: 'w3', start: { x: 340, y: 340, snapComp: 'b1', snapTerm: 'neg' }, end: { x: 365, y: 170, snapComp: 'l1', snapTerm: 't1' }, cp: { x: 300, y: 255, isCustom: true } }
+                ];
+            } else if (id === 7) { // 7. ⚠️ 一電池 + 一電線短路
+                if (hintText) hintText.innerText = "⚠️ 只有 1 顆電池和 1 條電線：電線把正極與負極直接相連，電流不經任何負載，立刻短路！";
+                presetComponents = [
+                    { id: 'b1', type: 'battery', x: 400, y: 280, rotation: 0 }
+                ];
+                presetWires = [
+                    { id: 'w1', start: { x: 460, y: 280, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 340, y: 280, snapComp: 'b1', snapTerm: 'neg' }, cp: { x: 400, y: 150, isCustom: true } }
+                ];
+            }
+
+            renderCanvas();
+            if (isPowerOn) solveAndRenderCircuit();
+        }
+
+        // ==================== 電路物理與求解引擎 ====================
+        const BAT_EMF = 1.5;      // 電池電動勢 (V)
+        const BAT_R = 0.01;       // 電池內阻
+        const BULB_R = 1;         // 燈泡電阻
+        const WIRE_R = 0.001;     // 導線 / 閉合開關電阻
+        const SNAP_PX = 14;       // 端點靠攏視為連通的距離
+        const DOCK_PX = 26;       // 元件放開時自動對接距離
+        const WIRE_SNAP_PX = 26;  // 電線端點吸附到端子的距離
+        const SHORT_CURRENT = 12; // 電池電流超過此值視為短路
+        const I_REF = BAT_EMF / (BULB_R + BAT_R + 2 * WIRE_R); // 「標準亮」的參考電流
+        const MAX_PER_TYPE = 2;
+        const MAX_WIRES = 12;
+
+        // 各元件端子相對於中心的位置
+        const TERMS = {
+            battery: { pos: { x: 60, y: 0 }, neg: { x: -60, y: 0 } },
+            bulb:    { t1: { x: -35, y: 40 }, t2: { x: 35, y: 40 } },
+            switch:  { t1: { x: -40, y: 0 }, t2: { x: 40, y: 0 } }
+        };
+        const BOXES = {
+            battery: { x: -70, y: -32, w: 140, h: 64 },
+            bulb:    { x: -52, y: -52, w: 104, h: 108 },
+            switch:  { x: -52, y: -30, w: 104, h: 60 }
+        };
+
+        let sim = null;
+        let shortWarned = false;
+        let selected = null;      // { kind: 'comp' | 'wire', id }
+        let uid = 100;
+        let pointerStart = null;
+        let dragMoved = false;
+
+        function termPos(comp, term) {
+            const o = TERMS[comp.type][term];
+            const a = (comp.rotation || 0) * Math.PI / 180;
+            const cos = Math.cos(a), sin = Math.sin(a);
+            return { x: comp.x + o.x * cos - o.y * sin, y: comp.y + o.x * sin + o.y * cos };
+        }
+
+        function findComp(id) { return getActiveData().comps.find(c => c.id === id); }
+        function findWire(id) { return getActiveData().wires.find(w => w.id === id); }
+
+        // 讓已吸附的電線端點跟著元件移動；未自訂彎曲點的電線維持直線
+        function syncWireEnds() {
+            const { comps, wires } = getActiveData();
+            wires.forEach(w => {
+                ['start', 'end'].forEach(k => {
+                    const n = w[k];
+                    if (n.snapComp) {
+                        const c = comps.find(cc => cc.id === n.snapComp);
+                        if (c && TERMS[c.type][n.snapTerm]) {
+                            const p = termPos(c, n.snapTerm);
+                            n.x = p.x; n.y = p.y;
+                        } else {
+                            n.snapComp = null; n.snapTerm = null;
+                        }
+                    }
+                });
+                if (!w.cp.isCustom) {
+                    w.cp.x = (w.start.x + w.end.x) / 2;
+                    w.cp.y = (w.start.y + w.end.y) / 2;
+                }
+            });
+        }
+
+        function gaussSolve(A, b) {
+            const n = b.length;
+            for (let i = 0; i < n; i++) {
+                let p = i;
+                for (let r = i + 1; r < n; r++) if (Math.abs(A[r][i]) > Math.abs(A[p][i])) p = r;
+                if (p !== i) { [A[i], A[p]] = [A[p], A[i]]; [b[i], b[p]] = [b[p], b[i]]; }
+                const piv = A[i][i] || 1e-12;
+                for (let r = i + 1; r < n; r++) {
+                    const f = A[r][i] / piv;
+                    if (f === 0) continue;
+                    for (let c = i; c < n; c++) A[r][c] -= f * A[i][c];
+                    b[r] -= f * b[i];
+                }
+            }
+            const x = new Array(n).fill(0);
+            for (let i = n - 1; i >= 0; i--) {
+                let s = b[i];
+                for (let c = i + 1; c < n; c++) s -= A[i][c] * x[c];
+                x[i] = s / (A[i][i] || 1e-12);
+            }
+            return x;
+        }
+
+        // 節點分析法 (MNA) 求解整個電路
+        function solveCircuit() {
+            const { comps, wires } = getActiveData();
+            const pts = [];
+            comps.forEach(c => Object.keys(TERMS[c.type]).forEach(t => {
+                const p = termPos(c, t);
+                pts.push({ key: c.id + ':' + t, x: p.x, y: p.y });
+            }));
+            wires.forEach(w => {
+                pts.push({ key: w.id + ':start', x: w.start.x, y: w.start.y });
+                pts.push({ key: w.id + ':end', x: w.end.x, y: w.end.y });
+            });
+
+            const parent = pts.map((_, i) => i);
+            const find = i => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+            const union = (a, b) => { a = find(a); b = find(b); if (a !== b) parent[a] = b; };
+            const idx = {};
+            pts.forEach((p, i) => idx[p.key] = i);
+
+            // 距離很近的端點視為直接接觸
+            for (let i = 0; i < pts.length; i++) {
+                for (let j = i + 1; j < pts.length; j++) {
+                    if (Math.hypot(pts[i].x - pts[j].x, pts[i].y - pts[j].y) <= SNAP_PX) union(i, j);
+                }
+            }
+            // 吸附的電線端點直接併入該端子節點
+            wires.forEach(w => {
+                [['start', ':start'], ['end', ':end']].forEach(([k, suf]) => {
+                    const n = w[k];
+                    if (n.snapComp && idx[n.snapComp + ':' + n.snapTerm] !== undefined) {
+                        union(idx[w.id + suf], idx[n.snapComp + ':' + n.snapTerm]);
+                    }
+                });
+            });
+
+            const nodeIdx = {};
+            let N = 0;
+            pts.forEach((_, i) => { const r = find(i); if (nodeIdx[r] === undefined) nodeIdx[r] = N++; });
+            const nodeOf = key => nodeIdx[find(idx[key])];
+
+            const G = Array.from({ length: N }, () => new Array(N).fill(0));
+            const I = new Array(N).fill(0);
+            const stamp = (a, b, g) => {
+                if (a === b) return;
+                G[a][a] += g; G[b][b] += g; G[a][b] -= g; G[b][a] -= g;
+            };
+            for (let i = 0; i < N; i++) G[i][i] += 1e-9; // 避免孤立節點造成奇異矩陣
+
+            const wireEls = wires.map(w => ({ id: w.id, a: nodeOf(w.id + ':start'), b: nodeOf(w.id + ':end') }));
+            wireEls.forEach(e => stamp(e.a, e.b, 1 / WIRE_R));
+
+            const bulbEls = [], batEls = [];
+            let samePoleShort = false;
+            comps.forEach(c => {
+                if (c.type === 'bulb') {
+                    const e = { id: c.id, a: nodeOf(c.id + ':t1'), b: nodeOf(c.id + ':t2') };
+                    bulbEls.push(e);
+                    stamp(e.a, e.b, 1 / BULB_R);
+                } else if (c.type === 'switch') {
+                    if (c.closed) stamp(nodeOf(c.id + ':t1'), nodeOf(c.id + ':t2'), 1 / WIRE_R);
+                } else if (c.type === 'battery') {
+                    const e = { id: c.id, p: nodeOf(c.id + ':pos'), n: nodeOf(c.id + ':neg') };
+                    batEls.push(e);
+                    if (e.p === e.n) { samePoleShort = true; return; }
+                    const g = 1 / BAT_R;
+                    stamp(e.p, e.n, g);
+                    I[e.p] += BAT_EMF * g;
+                    I[e.n] -= BAT_EMF * g;
+                }
+            });
+
+            const V = gaussSolve(G, I);
+
+            const wireI = {};
+            wireEls.forEach(e => { wireI[e.id] = e.a === e.b ? 0 : (V[e.a] - V[e.b]) / WIRE_R; });
+            const bulbLevel = {};
+            bulbEls.forEach(e => { bulbLevel[e.id] = Math.abs(V[e.a] - V[e.b]) / BULB_R / I_REF; });
+            let maxBat = 0;
+            batEls.forEach(e => {
+                if (e.p === e.n) return;
+                const cur = Math.abs((BAT_EMF - (V[e.p] - V[e.n])) / BAT_R);
+                maxBat = Math.max(maxBat, cur);
+            });
+            return { wireI, bulbLevel, short: samePoleShort || maxBat > SHORT_CURRENT };
+        }
+
+        // ==================== SVG 繪製 ====================
+        function glowClass(level) {
+            if (level >= 1.6) return 'glow-200';
+            if (level >= 0.85) return 'glow-100';
+            if (level >= 0.2) return 'glow-50';
+            return 'glow-0';
+        }
+
+        function drawBattery(c, sfx) {
+            return `
+            <g transform="translate(${c.x},${c.y}) rotate(${c.rotation || 0})">
+                <line x1="-60" y1="0" x2="-44" y2="0" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+                <line x1="44" y1="0" x2="60" y2="0" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+                <rect x="-44" y="-22" width="86" height="44" rx="8" fill="url(#batg-${sfx})" stroke="#64748b" stroke-width="2"/>
+                <rect x="42" y="-9" width="7" height="18" rx="2" fill="#cbd5e1"/>
+                <rect x="-44" y="-22" width="22" height="44" rx="8" fill="#3b82f6" opacity="0.28"/>
+                <text x="0" y="6" text-anchor="middle" font-size="16" font-weight="700" fill="#e2e8f0">1.5V</text>
+                <text x="30" y="6" text-anchor="middle" font-size="16" font-weight="700" fill="#fca5a5">+</text>
+                <text x="-32" y="6" text-anchor="middle" font-size="18" font-weight="700" fill="#93c5fd">−</text>
+                <circle cx="60" cy="0" r="7" fill="#ef4444" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="-60" cy="0" r="7" fill="#3b82f6" stroke="#0f172a" stroke-width="2"/>
+            </g>`;
+        }
+
+        function drawBulb(c, sfx, level, powered) {
+            const lit = powered && level >= 0.05;
+            const cls = powered ? glowClass(level) : 'glow-0';
+            let fill = 'rgba(148,163,184,0.18)';
+            if (lit) fill = level >= 1.6 ? '#fef08a' : (level >= 0.85 ? 'rgba(250,204,21,0.85)' : 'rgba(250,204,21,0.4)');
+            const halo = lit ? `<circle cx="0" cy="-8" r="${36 + Math.min(level, 2) * 32}" fill="url(#halo-${sfx})" opacity="${Math.min(0.95, 0.25 + level * 0.35)}"/>` : '';
+            const body = `
+            <g transform="translate(${c.x},${c.y}) rotate(${c.rotation || 0})">
+                ${halo}
+                <line x1="-20" y1="40" x2="-35" y2="40" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+                <line x1="20" y1="40" x2="35" y2="40" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+                <rect x="-20" y="22" width="40" height="26" rx="5" fill="#64748b" stroke="#475569" stroke-width="2"/>
+                <line x1="-20" y1="31" x2="20" y2="31" stroke="#475569" stroke-width="2"/>
+                <line x1="-20" y1="39" x2="20" y2="39" stroke="#475569" stroke-width="2"/>
+                <g class="${cls}">
+                    <circle cx="0" cy="-8" r="36" fill="${fill}" stroke="${lit ? '#fde68a' : '#94a3b8'}" stroke-width="2.5"/>
+                    <path d="M -10 24 L -10 6 Q -5 -14 0 6 Q 5 -14 10 6 L 10 24" fill="none" stroke="${lit ? '#fffbeb' : '#94a3b8'}" stroke-width="3" stroke-linecap="round"/>
+                </g>
+                <circle cx="-35" cy="40" r="7" fill="#f59e0b" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="35" cy="40" r="7" fill="#f59e0b" stroke="#0f172a" stroke-width="2"/>
+            </g>`;
+            let label = '';
+            if (powered) {
+                const txt = level < 0.05 ? '不亮' : `亮度 ${Math.round(level * 20) * 5}%`;
+                label = `<text x="${c.x}" y="${c.y + 78}" text-anchor="middle" font-size="14" font-weight="700" fill="${lit ? '#fcd34d' : '#64748b'}">${txt}</text>`;
+            }
+            return body + label;
+        }
+
+        function drawSwitch(c) {
+            const lever = c.closed
+                ? '<line x1="-24" y1="0" x2="26" y2="0" stroke="#e2e8f0" stroke-width="5" stroke-linecap="round"/>'
+                : '<line x1="-24" y1="0" x2="16" y2="-24" stroke="#e2e8f0" stroke-width="5" stroke-linecap="round"/>';
+            return `
+            <g transform="translate(${c.x},${c.y}) rotate(${c.rotation || 0})">
+                <line x1="-40" y1="0" x2="-26" y2="0" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+                <line x1="26" y1="0" x2="40" y2="0" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
+                <rect x="-32" y="-12" width="64" height="24" rx="7" fill="#334155" stroke="#64748b" stroke-width="2"/>
+                ${lever}
+                <circle cx="-24" cy="0" r="5" fill="#fbbf24"/>
+                <circle cx="26" cy="0" r="5" fill="#fbbf24"/>
+                <text x="0" y="26" text-anchor="middle" font-size="12" font-weight="700" fill="${c.closed ? '#6ee7b7' : '#94a3b8'}">${c.closed ? 'ON' : 'OFF'}</text>
+                <circle cx="-40" cy="0" r="7" fill="#f59e0b" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="40" cy="0" r="7" fill="#f59e0b" stroke="#0f172a" stroke-width="2"/>
+            </g>`;
+        }
+
+        function wireMid(w) {
+            return {
+                x: 0.25 * w.start.x + 0.5 * w.cp.x + 0.25 * w.end.x,
+                y: 0.25 * w.start.y + 0.5 * w.cp.y + 0.25 * w.end.y
+            };
+        }
+
+        function renderCanvas() {
+            if (currentTab === 'theory') return;
+            const isAssembly = currentTab === 'assembly' || currentTab === 'trouble'; // 可編輯分頁
+            const svg = document.getElementById('svg-canvas-' + currentTab);
+            if (!svg) return;
+            const sfx = currentTab[0];
+            const { comps, wires } = getActiveData();
+
+            syncWireEnds();
+            sim = isPowerOn ? solveCircuit() : null;
+
+            let html = `
+            <defs>
+                <linearGradient id="batg-${sfx}" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#475569"/><stop offset="1" stop-color="#1e293b"/>
+                </linearGradient>
+                <radialGradient id="halo-${sfx}">
+                    <stop offset="0" stop-color="#fde047" stop-opacity="0.9"/>
+                    <stop offset="1" stop-color="#f59e0b" stop-opacity="0"/>
+                </radialGradient>
+            </defs>`;
+
+            if (currentTab === 'assembly' && comps.length === 0 && wires.length === 0) {
+                html += `<text x="400" y="240" text-anchor="middle" font-size="20" fill="#64748b">畫布是空的</text>
+                         <text x="400" y="272" text-anchor="middle" font-size="15" fill="#475569">點擊上方按鈕加入電池、燈泡、開關與電線</text>`;
+            }
+
+            // 1. 電線 (在元件下方)
+            wires.forEach(w => {
+                const d = `M ${w.start.x} ${w.start.y} Q ${w.cp.x} ${w.cp.y} ${w.end.x} ${w.end.y}`;
+                const isSel = selected && selected.kind === 'wire' && selected.id === w.id;
+                const cur = sim ? (sim.wireI[w.id] || 0) : 0;
+                const isShort = sim && Math.abs(cur) > SHORT_CURRENT;
+                if (isAssembly) {
+                    html += `<path d="${d}" fill="none" stroke="transparent" stroke-width="26" stroke-linecap="round" data-role="wire" data-id="${w.id}" style="cursor:pointer"/>`;
+                }
+                html += `<path d="${d}" fill="none" stroke="${isSel ? '#38bdf8' : '#94a3b8'}" stroke-width="5" stroke-linecap="round" class="${isShort ? 'short-circuit-wire' : ''}" pointer-events="none"/>`;
+                if (sim && !isShort && Math.abs(cur) > 0.02) {
+                    const fwd = cur > 0;
+                    const speed = Math.min(Math.max(Math.abs(cur), 0.4), 3);
+                    html += `<path d="${d}" fill="none" stroke="#fde047" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 12" pointer-events="none">
+                        <animate attributeName="stroke-dashoffset" from="0" to="${fwd ? -18 : 18}" dur="${(0.9 / speed).toFixed(2)}s" repeatCount="indefinite"/>
+                    </path>`;
+                }
+            });
+
+            // 2. 元件
+            comps.forEach(c => {
+                const b = BOXES[c.type];
+                let inner = '';
+                if (c.type === 'battery') inner = drawBattery(c, sfx);
+                else if (c.type === 'bulb') inner = drawBulb(c, sfx, sim ? (sim.bulbLevel[c.id] || 0) : 0, !!sim);
+                else inner = drawSwitch(c);
+                html += `<g data-role="comp" data-id="${c.id}" style="cursor:grab">
+                    <g transform="translate(${c.x},${c.y}) rotate(${c.rotation || 0})">
+                        <rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="transparent"/>
+                    </g>
+                    ${inner}
+                </g>`;
+            });
+
+            // 3. 組裝模式：選取框、電線把手、操作按鈕
+            if (isAssembly) {
+                wires.forEach(w => {
+                    const isSel = selected && selected.kind === 'wire' && selected.id === w.id;
+                    ['start', 'end'].forEach(k => {
+                        const n = w[k];
+                        html += `<g data-role="wend" data-id="${w.id}" data-end="${k}" style="cursor:grab">
+                            <circle cx="${n.x}" cy="${n.y}" r="20" fill="transparent"/>
+                            <circle cx="${n.x}" cy="${n.y}" r="${n.snapComp ? 6 : 9}" fill="${n.snapComp ? '#38bdf8' : '#f59e0b'}" stroke="#0f172a" stroke-width="2"/>
+                        </g>`;
+                    });
+                    if (isSel) {
+                        const m = wireMid(w);
+                        html += `<g data-role="wmid" data-id="${w.id}" style="cursor:grab">
+                            <circle cx="${m.x}" cy="${m.y}" r="20" fill="transparent"/>
+                            <rect x="${m.x - 8}" y="${m.y - 8}" width="16" height="16" rx="3" transform="rotate(45 ${m.x} ${m.y})" fill="#38bdf8" stroke="#0f172a" stroke-width="2"/>
+                        </g>
+                        <g data-role="del-wire" data-id="${w.id}" style="cursor:pointer">
+                            <circle cx="${m.x}" cy="${m.y - 38}" r="16" fill="#be123c" stroke="#fecdd3" stroke-width="2"/>
+                            <text x="${m.x}" y="${m.y - 32}" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">✕</text>
+                        </g>`;
+                    }
+                });
+
+                if (selected && selected.kind === 'comp') {
+                    const c = comps.find(cc => cc.id === selected.id);
+                    if (c) {
+                        const b = BOXES[c.type];
+                        html += `<g transform="translate(${c.x},${c.y}) rotate(${c.rotation || 0})" pointer-events="none">
+                            <rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="10" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="6 5"/>
+                        </g>
+                        <g data-role="rot" data-id="${c.id}" style="cursor:pointer">
+                            <circle cx="${c.x - 26}" cy="${c.y - 82}" r="16" fill="#0369a1" stroke="#bae6fd" stroke-width="2"/>
+                            <text x="${c.x - 26}" y="${c.y - 75}" text-anchor="middle" font-size="20" font-weight="700" fill="#fff">↻</text>
+                        </g>
+                        <g data-role="del-comp" data-id="${c.id}" style="cursor:pointer">
+                            <circle cx="${c.x + 26}" cy="${c.y - 82}" r="16" fill="#be123c" stroke="#fecdd3" stroke-width="2"/>
+                            <text x="${c.x + 26}" y="${c.y - 76}" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">✕</text>
+                        </g>`;
+                    }
+                }
+            }
+
+            svg.innerHTML = html;
+            updateShortState();
+            updateTroubleStatus();
+        }
+
+        // 短路偵測 → 警報視窗
+        function updateShortState() {
+            if (sim && sim.short) {
+                if (!shortWarned) {
+                    shortWarned = true;
+                    playSound('alert');
+                    document.getElementById('short-circuit-modal').classList.remove('hidden');
+                }
+            } else {
+                shortWarned = false;
+            }
+        }
+
+        function solveAndRenderCircuit() { renderCanvas(); }
+
+        // ==================== 電源控制 ====================
+        function updatePowerUI() {
+            const btn = document.getElementById('run-toggle-btn');
+            const led = document.getElementById('power-led');
+            const label = document.getElementById('power-btn-label');
+            const status = document.getElementById('power-status-text');
+            const on = isPowerOn;
+            label.textContent = on ? '斷電停止 (STOP)' : '通電執行 (RUN)';
+            status.textContent = on ? '通電中 (RUN)' : '已中斷 (STOP)';
+            status.className = 'text-xs font-bold ' + (on ? 'text-emerald-400' : 'text-slate-400');
+            btn.classList.toggle('bg-emerald-600', !on);
+            btn.classList.toggle('hover:bg-emerald-500', !on);
+            btn.classList.toggle('shadow-emerald-600/30', !on);
+            btn.classList.toggle('bg-rose-600', on);
+            btn.classList.toggle('hover:bg-rose-500', on);
+            btn.classList.toggle('shadow-rose-600/30', on);
+            led.classList.toggle('bg-slate-400', !on);
+            led.classList.toggle('bg-emerald-300', on);
+            led.style.boxShadow = on ? '0 0 10px 2px #6ee7b7' : '';
+        }
+
+        function togglePower() {
+            isPowerOn = !isPowerOn;
+            playSound('click');
+            updatePowerUI();
+            renderCanvas();
+        }
+
+        function dismissShortCircuitModal() {
+            document.getElementById('short-circuit-modal').classList.add('hidden');
+            isPowerOn = false;
+            shortWarned = false;
+            updatePowerUI();
+            renderCanvas();
+        }
+
+        // ==================== 頁面切換 (Tabs) ====================
+        function switchTab(tab) {
+            currentTab = tab;
+            selected = null;
+            draggedComponent = null; rotatingComponent = null; draggedWireNode = null;
+            ['preset', 'assembly', 'trouble', 'theory'].forEach(t => {
+                document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+                const b = document.getElementById('tab-btn-' + t);
+                const active = t === tab;
+                ['bg-amber-500', 'text-slate-950', 'shadow-md', 'font-bold'].forEach(cl => b.classList.toggle(cl, active));
+                ['text-slate-300', 'hover:text-white'].forEach(cl => b.classList.toggle(cl, !active));
+            });
+            playSound('click');
+            updateCounts();
+            if (tab === 'trouble' && troubleComponents.length === 0) { loadTrouble(activeTroubleId); return; }
+            renderCanvas();
+        }
+
+        // ==================== 電路組裝：新增 / 刪除 / 清空 ====================
+        function updateCounts() {
+            const n = type => assemblyComponents.filter(c => c.type === type).length;
+            const set = (btnId, labelId, text, count) => {
+                document.getElementById(labelId).textContent = text;
+                document.getElementById(btnId).classList.toggle('opacity-40', count >= MAX_PER_TYPE);
+            };
+            set('add-bat-btn', 'bat-btn-label', `+ 電池 (${n('battery')}/${MAX_PER_TYPE})`, n('battery'));
+            set('add-bulb-btn', 'bulb-btn-label', `+ 燈泡 (${n('bulb')}/${MAX_PER_TYPE})`, n('bulb'));
+            set('add-switch-btn', 'switch-btn-label', `+ 開關 (${n('switch')}/${MAX_PER_TYPE})`, n('switch'));
+        }
+
+        function spawnComponent(type) {
+            const slots = {
+                battery: [{ x: 200, y: 140 }, { x: 420, y: 140 }],
+                bulb:    [{ x: 280, y: 300 }, { x: 520, y: 300 }],
+                switch:  [{ x: 160, y: 420 }, { x: 640, y: 420 }]
+            };
+            const existing = assemblyComponents.filter(c => c.type === type);
+            if (existing.length >= MAX_PER_TYPE) { playSound('alert'); return; }
+            const free = slots[type].find(s => !existing.some(c => Math.hypot(c.x - s.x, c.y - s.y) < 20)) || slots[type][0];
+            const comp = { id: type[0] + (++uid), type, x: free.x, y: free.y, rotation: 0 };
+            if (type === 'switch') comp.closed = false;
+            assemblyComponents.push(comp);
+            selected = { kind: 'comp', id: comp.id };
+            playSound('click');
+            updateCounts();
+            renderCanvas();
+        }
+
+        function spawnWire() {
+            const data = getActiveData();
+            if (currentTab === 'preset' || currentTab === 'theory') return;
+            if (data.wires.length >= MAX_WIRES) { playSound('alert'); return; }
+            const y = 70 + (data.wires.length % 9) * 44;
+            const w = {
+                id: 'w' + (++uid),
+                start: { x: 300, y, snapComp: null, snapTerm: null },
+                end: { x: 500, y, snapComp: null, snapTerm: null },
+                cp: { x: 400, y, isCustom: false }
+            };
+            data.wires.push(w);
+            selected = { kind: 'wire', id: w.id };
+            playSound('click');
+            renderCanvas();
+        }
+
+        function deleteComponent(id) {
+            const data = getActiveData();
+            const ci = data.comps.findIndex(c => c.id === id);
+            if (ci >= 0) data.comps.splice(ci, 1);
+            data.wires.forEach(w => ['start', 'end'].forEach(k => {
+                if (w[k].snapComp === id) { w[k].snapComp = null; w[k].snapTerm = null; }
+            }));
+            selected = null;
+            playSound('click');
+            updateCounts();
+            renderCanvas();
+        }
+
+        function deleteWire(id) {
+            const data = getActiveData();
+            const wi = data.wires.findIndex(w => w.id === id);
+            if (wi >= 0) data.wires.splice(wi, 1);
+            selected = null;
+            playSound('click');
+            renderCanvas();
+        }
+
+        function clearAssemblyCanvas() {
+            assemblyComponents = [];
+            assemblyWires = [];
+            selected = null;
+            playSound('click');
+            updateCounts();
+            renderCanvas();
+        }
+
+        // ==================== 指標 (觸控 / 滑鼠) 互動 ====================
+        function svgPoint(svg, e) {
+            const pt = svg.createSVGPoint();
+            pt.x = e.clientX; pt.y = e.clientY;
+            const m = svg.getScreenCTM();
+            return m ? pt.matrixTransform(m.inverse()) : { x: e.clientX, y: e.clientY };
+        }
+
+        const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+        function onPointerDown(e) {
+            const svg = e.currentTarget;
+            const target = e.target.closest ? e.target.closest('[data-role]') : null;
+            const pt = svgPoint(svg, e);
+            pointerStart = pt;
+            dragMoved = false;
+            draggedComponent = null; rotatingComponent = null; draggedWireNode = null;
+
+            if (!target) {
+                if (selected) { selected = null; renderCanvas(); }
+                return;
+            }
+            const role = target.dataset.role;
+            const id = target.dataset.id;
+            const isAssembly = currentTab === 'assembly' || currentTab === 'trouble';
+            try { svg.setPointerCapture(e.pointerId); } catch (err) {}
+
+            if (role === 'comp') {
+                const c = findComp(id);
+                if (!c) return;
+                draggedComponent = c;
+                dragOffset = { x: pt.x - c.x, y: pt.y - c.y };
+                if (isAssembly) { selected = { kind: 'comp', id }; renderCanvas(); }
+            } else if (role === 'rot') {
+                rotatingComponent = findComp(id);
+            } else if (role === 'del-comp') {
+                deleteComponent(id);
+            } else if (role === 'del-wire') {
+                deleteWire(id);
+            } else if (role === 'wend') {
+                selected = { kind: 'wire', id };
+                draggedWireNode = { wireId: id, nodeType: target.dataset.end };
+                renderCanvas();
+            } else if (role === 'wmid' || role === 'wire') {
+                selected = { kind: 'wire', id };
+                draggedWireNode = { wireId: id, nodeType: 'cp' };
+                renderCanvas();
+            }
+        }
+
+        function onPointerMove(e) {
+            if (!draggedComponent && !rotatingComponent && !draggedWireNode) return;
+            const svg = e.currentTarget;
+            const pt = svgPoint(svg, e);
+            if (pointerStart && Math.hypot(pt.x - pointerStart.x, pt.y - pointerStart.y) > 4) dragMoved = true;
+            if (!dragMoved) return;
+
+            if (draggedComponent) {
+                draggedComponent.x = clamp(pt.x - dragOffset.x, 30, 770);
+                draggedComponent.y = clamp(pt.y - dragOffset.y, 60, 460);
+            } else if (rotatingComponent) {
+                const c = rotatingComponent;
+                const ang = Math.atan2(pt.y - c.y, pt.x - c.x) * 180 / Math.PI + 90;
+                c.rotation = ((Math.round(ang / 15) * 15) % 360 + 360) % 360;
+            } else if (draggedWireNode) {
+                const w = findWire(draggedWireNode.wireId);
+                if (!w) return;
+                const x = clamp(pt.x, 10, 790), y = clamp(pt.y, 10, 490);
+                if (draggedWireNode.nodeType === 'cp') {
+                    // 讓曲線通過指標位置
+                    w.cp.x = 2 * x - (w.start.x + w.end.x) / 2;
+                    w.cp.y = 2 * y - (w.start.y + w.end.y) / 2;
+                    w.cp.isCustom = true;
+                } else {
+                    const n = w[draggedWireNode.nodeType];
+                    n.x = x; n.y = y; n.snapComp = null; n.snapTerm = null;
+                }
+            }
+            renderCanvas();
+        }
+
+        function onPointerUp(e) {
+            const svg = e.currentTarget;
+            try { svg.releasePointerCapture(e.pointerId); } catch (err) {}
+
+            if (draggedComponent) {
+                const c = draggedComponent;
+                if (!dragMoved) {
+                    if (c.type === 'switch') { c.closed = !c.closed; playSound('click'); }
+                } else {
+                    dockComponent(c);
+                }
+            } else if (rotatingComponent) {
+                if (!dragMoved) { rotatingComponent.rotation = ((rotatingComponent.rotation || 0) + 90) % 360; playSound('click'); }
+            } else if (draggedWireNode && dragMoved && draggedWireNode.nodeType !== 'cp') {
+                snapWireEnd(findWire(draggedWireNode.wireId), draggedWireNode.nodeType);
+            }
+
+            const had = draggedComponent || rotatingComponent || draggedWireNode;
+            draggedComponent = null; rotatingComponent = null; draggedWireNode = null;
+            pointerStart = null;
+            if (had) renderCanvas();
+        }
+
+        // 放開元件時，若端子靠近其他元件端子就自動對接
+        function dockComponent(c) {
+            const { comps } = getActiveData();
+            let best = null;
+            Object.keys(TERMS[c.type]).forEach(t => {
+                const p = termPos(c, t);
+                comps.forEach(o => {
+                    if (o.id === c.id) return;
+                    Object.keys(TERMS[o.type]).forEach(ot => {
+                        const q = termPos(o, ot);
+                        const d = Math.hypot(p.x - q.x, p.y - q.y);
+                        if (d <= DOCK_PX && (!best || d < best.d)) best = { d, dx: q.x - p.x, dy: q.y - p.y };
+                    });
+                });
+            });
+            if (best && best.d > 0.5) {
+                c.x = clamp(c.x + best.dx, 30, 770);
+                c.y = clamp(c.y + best.dy, 60, 460);
+                playSound('click');
+            }
+        }
+
+        // 電線端點放開時吸附到最近的端子 (或其他電線端點)
+        function snapWireEnd(w, which) {
+            if (!w) return;
+            const { comps, wires } = getActiveData();
+            const n = w[which];
+            let best = null;
+            comps.forEach(c => Object.keys(TERMS[c.type]).forEach(t => {
+                const p = termPos(c, t);
+                const d = Math.hypot(n.x - p.x, n.y - p.y);
+                if (d <= WIRE_SNAP_PX && (!best || d < best.d)) best = { d, comp: c.id, term: t, x: p.x, y: p.y };
+            }));
+            if (best) {
+                n.x = best.x; n.y = best.y; n.snapComp = best.comp; n.snapTerm = best.term;
+                playSound('click');
+                return;
+            }
+            let bestW = null;
+            wires.forEach(o => {
+                if (o.id === w.id) return;
+                ['start', 'end'].forEach(k => {
+                    const d = Math.hypot(n.x - o[k].x, n.y - o[k].y);
+                    if (d <= 20 && (!bestW || d < bestW.d)) bestW = { d, x: o[k].x, y: o[k].y };
+                });
+            });
+            if (bestW) { n.x = bestW.x; n.y = bestW.y; playSound('click'); }
+        }
+
+
+        // ==================== 故障排除模式 ====================
+        function playSuccess() {
+            try {
+                const ctx = getAudioContext();
+                [523, 659, 784].forEach((f, i) => {
+                    const osc = ctx.createOscillator(), gain = ctx.createGain();
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    const t = ctx.currentTime + i * 0.12;
+                    osc.frequency.setValueAtTime(f, t);
+                    gain.gain.setValueAtTime(0.15, t);
+                    gain.gain.linearRampToValueAtTime(0.01, t + 0.15);
+                    osc.start(t); osc.stop(t + 0.15);
+                });
+            } catch (e) {}
+        }
+
+        function mkWire(comps, id, a, at, b, bt, cp) {
+            const ca = comps.find(c => c.id === a), pa = termPos(ca, at);
+            const start = { x: pa.x, y: pa.y, snapComp: a, snapTerm: at };
+            let end;
+            if (Array.isArray(b)) end = { x: b[0], y: b[1], snapComp: null, snapTerm: null }; // 游離端點
+            else { const pb = termPos(comps.find(c => c.id === b), bt); end = { x: pb.x, y: pb.y, snapComp: b, snapTerm: bt }; }
+            return { id, start, end, cp: { x: cp[0], y: cp[1], isCustom: true } };
+        }
+
+        const TROUBLES = {
+            1: {
+                desc: '🔍 情境 1：電池和燈泡都是好的，按下 RUN 燈泡卻不亮。請找出原因並修好它！',
+                hint: '看看有沒有橘色的游離端點——把它拖到燈泡左側的接點上（放開時會自動吸附）。',
+                fix: '原因：電線沒有接到燈泡，迴路是斷開的（斷路）。接好後電流才有完整的路可以走。',
+                build() {
+                    const comps = [{ id: 'b1', type: 'battery', x: 220, y: 250, rotation: 0 }, { id: 'l1', type: 'bulb', x: 500, y: 250, rotation: 0 }];
+                    return { comps, wires: [
+                        mkWire(comps, 'w1', 'b1', 'pos', 'l1', 't2', [410, 150]),
+                        mkWire(comps, 'w2', 'b1', 'neg', [400, 370], null, [280, 400])
+                    ] };
+                }
+            },
+            2: {
+                desc: '🔍 情境 2：電線都接好了，但燈泡還是不亮。請檢查電路中的元件！',
+                hint: '電路中間有一個開關，目前是 OFF（斷開）。點一下開關讓它變成 ON。',
+                fix: '原因：開關是打開的，等於把迴路切斷。關上（ON）開關後電流才能流通。',
+                build() {
+                    const comps = [
+                        { id: 'b1', type: 'battery', x: 200, y: 300, rotation: 0 },
+                        { id: 's1', type: 'switch', x: 400, y: 150, rotation: 0, closed: false },
+                        { id: 'l1', type: 'bulb', x: 600, y: 300, rotation: 0 }
+                    ];
+                    return { comps, wires: [
+                        mkWire(comps, 'w1', 'b1', 'pos', 's1', 't1', [260, 150]),
+                        mkWire(comps, 'w2', 's1', 't2', 'l1', 't2', [640, 170]),
+                        mkWire(comps, 'w3', 'l1', 't1', 'b1', 'neg', [350, 440])
+                    ] };
+                }
+            },
+            3: {
+                desc: '🔍 情境 3：只有一條電線連著電池和燈泡，燈泡不亮。你需要補上什麼？',
+                hint: '按上方「⚡ + 電線」新增一條線，再把它的兩端分別拖到「電池負極（藍色）」與「燈泡左側接點」。',
+                fix: '原因：只有一條電線，電流出去之後回不到電池，沒有形成完整迴路。補上第二條線後就通了。',
+                build() {
+                    const comps = [{ id: 'b1', type: 'battery', x: 220, y: 300, rotation: 0 }, { id: 'l1', type: 'bulb', x: 500, y: 300, rotation: 0 }];
+                    return { comps, wires: [ mkWire(comps, 'w1', 'b1', 'pos', 'l1', 't2', [410, 200]) ] };
+                }
+            },
+            4: {
+                desc: '🔍 情境 4：燈泡不亮，而且一通電就出現危險警告！找出多餘的東西。',
+                hint: '有一條電線直接接在燈泡兩端，電流都走這條「捷徑」。點選它，再按紅色 ✕ 刪除。（可先按斷電再修理）',
+                fix: '原因：燈泡兩端被電線短接，電流完全不經過燈泡（短路）。移除多餘的電線後燈泡就會亮。',
+                build() {
+                    const comps = [{ id: 'b1', type: 'battery', x: 220, y: 250, rotation: 0 }, { id: 'l1', type: 'bulb', x: 500, y: 250, rotation: 0 }];
+                    return { comps, wires: [
+                        mkWire(comps, 'w1', 'b1', 'pos', 'l1', 't2', [410, 150]),
+                        mkWire(comps, 'w2', 'b1', 'neg', 'l1', 't1', [310, 350]),
+                        mkWire(comps, 'w3', 'l1', 't1', 'l1', 't2', [500, 410])
+                    ] };
+                }
+            },
+            5: {
+                desc: '🔍 情境 5：兩顆燈泡並聯，其中一顆亮、另一顆不亮。請讓兩顆都亮！',
+                hint: '下方那顆燈泡的電線有一端游離在外，把橘色端點拖到電池負極（左側藍色接點）。',
+                fix: '原因：並聯時每個分路都要各自形成迴路。不亮的那一路少接了一端，該分路是斷路。',
+                build() {
+                    const comps = [
+                        { id: 'b1', type: 'battery', x: 180, y: 250, rotation: 0 },
+                        { id: 'l1', type: 'bulb', x: 480, y: 180, rotation: 0 },
+                        { id: 'l2', type: 'bulb', x: 480, y: 320, rotation: 0 }
+                    ];
+                    return { comps, wires: [
+                        mkWire(comps, 'w1', 'b1', 'pos', 'l1', 't2', [380, 140]),
+                        mkWire(comps, 'w2', 'b1', 'pos', 'l2', 't2', [380, 260]),
+                        mkWire(comps, 'w3', 'l1', 't1', 'b1', 'neg', [280, 200]),
+                        mkWire(comps, 'w4', 'l2', 't1', [200, 440], null, [320, 430])
+                    ] };
+                }
+            },
+            6: {
+                desc: '🔍 情境 6：兩顆電池串聯要帶動燈泡，但燈泡完全不亮。哪裡斷了？',
+                hint: '兩顆電池之間的電線有一端是游離的橘色端點，把它拖到右邊電池的負極（左側藍色接點）。',
+                fix: '原因：串聯的兩顆電池之間沒有接上，整條迴路被切斷。接好後電壓疊加成 3.0V，燈泡會比平常更亮（200%）。',
+                build() {
+                    const comps = [
+                        { id: 'b1', type: 'battery', x: 200, y: 250, rotation: 0 },
+                        { id: 'b2', type: 'battery', x: 340, y: 250, rotation: 0 },
+                        { id: 'l1', type: 'bulb', x: 580, y: 250, rotation: 0 }
+                    ];
+                    return { comps, wires: [
+                        mkWire(comps, 'w1', 'b1', 'pos', [270, 350], null, [270, 330]),
+                        mkWire(comps, 'w2', 'b2', 'pos', 'l1', 't2', [500, 160]),
+                        mkWire(comps, 'w3', 'b1', 'neg', 'l1', 't1', [350, 400])
+                    ] };
+                }
+            }
+        };
+
+        function loadTrouble(id) {
+            activeTroubleId = id;
+            troubleSolved = false;
+            selected = null;
+            const built = TROUBLES[id].build();
+            troubleComponents = built.comps;
+            troubleWires = built.wires;
+            document.getElementById('trouble-hint').classList.add('hidden');
+            document.querySelectorAll('.trouble-btn').forEach(b => {
+                const on = b.id === 'trouble-btn-' + id;
+                b.classList.toggle('bg-amber-500', on);
+                b.classList.toggle('text-slate-950', on);
+                b.classList.toggle('bg-slate-800', !on);
+                b.classList.toggle('text-slate-200', !on);
+            });
+            if (currentTab === 'trouble') { playSound('click'); renderCanvas(); }
+        }
+
+        function toggleTroubleHint() {
+            const el = document.getElementById('trouble-hint');
+            el.textContent = '💡 提示：' + TROUBLES[activeTroubleId].hint;
+            el.classList.toggle('hidden');
+        }
+
+        function updateTroubleStatus() {
+            if (currentTab !== 'trouble') return;
+            const sc = TROUBLES[activeTroubleId];
+            document.getElementById('trouble-desc').textContent = sc.desc;
+            const el = document.getElementById('trouble-status');
+            const bulbs = troubleComponents.filter(c => c.type === 'bulb');
+            let cls = 'text-slate-400', txt = '';
+            let solved = false;
+            if (!isPowerOn) {
+                txt = '👉 動手修理後，按右上角「通電執行 (RUN)」檢查燈泡會不會亮。';
+            } else if (sim && sim.short) {
+                cls = 'text-rose-400'; txt = '💥 發生短路！請按「斷電停止」，再找出造成短路的電線。';
+            } else if (sim && bulbs.length && bulbs.every(b => (sim.bulbLevel[b.id] || 0) >= 0.85)) {
+                solved = true; cls = 'text-emerald-400'; txt = '🎉 成功！燈泡亮了。' + sc.fix;
+            } else {
+                cls = 'text-amber-400'; txt = '🌑 還有燈泡沒亮，繼續檢查電路。需要的話可以按「💡 提示」。';
+            }
+            el.className = 'text-xs md:text-sm font-bold ' + cls;
+            el.textContent = txt;
+            if (solved && !troubleSolved) playSuccess();
+            troubleSolved = solved;
+        }
+
+        // ==================== 初始化 ====================
+        window.addEventListener('DOMContentLoaded', () => {
+            ['svg-canvas-preset', 'svg-canvas-assembly', 'svg-canvas-trouble'].forEach(id => {
+                const svg = document.getElementById(id);
+                svg.addEventListener('pointerdown', onPointerDown);
+                svg.addEventListener('pointermove', onPointerMove);
+                svg.addEventListener('pointerup', onPointerUp);
+                svg.addEventListener('pointercancel', onPointerUp);
+            });
+            updatePowerUI();
+            updateCounts();
+            loadPreset(1);
+        });
+    </script>
+</body>
+</html>
