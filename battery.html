@@ -10,6 +10,15 @@
         tailwind.config = {
             theme: {
                 extend: {
+                    fontSize: {
+                        'xs':   ['0.9375rem', { lineHeight: '1.4rem' }],
+                        'sm':   ['1.0625rem', { lineHeight: '1.6rem' }],
+                        'base': ['1.1875rem', { lineHeight: '1.75rem' }],
+                        'lg':   ['1.375rem',  { lineHeight: '1.9rem' }],
+                        'xl':   ['1.5rem',    { lineHeight: '2rem' }],
+                        '2xl':  ['1.75rem',   { lineHeight: '2.25rem' }],
+                        '3xl':  ['2.1rem',    { lineHeight: '2.5rem' }]
+                    },
                     colors: {
                         lab: {
                             bg: '#0f172a',
@@ -75,7 +84,7 @@
                 <h1 class="text-base md:text-lg font-bold bg-gradient-to-r from-amber-200 via-yellow-100 to-sky-200 bg-clip-text text-transparent">
                     電路實驗室
                 </h1>
-                <p class="text-xs text-slate-400 hidden sm:block">電池與燈泡串並聯教學 (iPad 觸控優化版)</p>
+                <p class="text-xs text-slate-400 hidden xl:block">電池與燈泡串並聯教學 (iPad 觸控優化版)</p>
             </div>
         </div>
 
@@ -101,7 +110,7 @@
 
         <!-- 執行總開關 (Master Run Switch) -->
         <div class="flex items-center space-x-3">
-            <div class="flex flex-col items-end hidden md:flex">
+            <div class="flex flex-col items-end hidden xl:flex">
                 <span class="text-xs text-slate-400">電源開關狀態</span>
                 <span id="power-status-text" class="text-xs font-bold text-slate-400">已中斷 (STOP)</span>
             </div>
@@ -118,7 +127,7 @@
         <!-- ==================== 分頁一：電路教學區 ==================== -->
         <section id="tab-preset" class="w-full h-full flex flex-col md:flex-row relative">
             <!-- 左側情境按鈕選單 -->
-            <div class="w-full md:w-80 bg-slate-900/90 border-r border-slate-800 p-4 flex flex-col space-y-3 z-10 shrink-0 overflow-y-auto no-scrollbar">
+            <div class="w-full md:w-[26rem] bg-slate-900/90 border-r border-slate-800 p-4 flex flex-col space-y-3 z-10 shrink-0 overflow-y-auto no-scrollbar">
                 <h2 class="text-xs font-bold tracking-wider text-slate-400 uppercase">經典電路教學</h2>
                 
                 <button onclick="loadPreset(1)" class="preset-card text-left p-3.5 rounded-xl border border-slate-700/70 bg-slate-800/80 hover:bg-slate-800 hover:border-amber-500/50 transition-all flex flex-col space-y-1 group cursor-pointer active:scale-[0.98]">
@@ -266,22 +275,23 @@
 
         <!-- ==================== 分頁三：原理解析 (極簡視覺圖表) ==================== -->
         <section id="tab-theory" class="w-full h-full flex-1 bg-slate-900 p-4 md:p-8 overflow-y-auto hidden">
-            <div class="max-w-5xl mx-auto space-y-6 pb-12">
+            <div class="max-w-7xl mx-auto space-y-6 pb-12">
                 <!-- 標題 -->
                 <div>
                     <h2 class="text-2xl font-bold text-amber-300">電路特性與燈泡亮度比較對照表</h2>
-                    <p class="text-sm text-slate-400 mt-1">圖表化呈現 5 種經典電路的亮度比例與電池電量消耗速度。</p>
+                    <p class="text-sm text-slate-400 mt-1">圖表化呈現 5 種經典電路的亮度比例與電池電量消耗速度（消耗以單一通路的每顆電池為 100%，比例愈多代表消耗愈多）。</p>
                 </div>
 
                 <!-- 視覺化圖表與對照表格 -->
                 <div class="overflow-x-auto rounded-2xl border border-slate-700 bg-slate-800/80 shadow-xl">
-                    <table class="w-full text-left border-collapse min-w-[560px]">
+                    <table class="w-full text-left border-collapse min-w-[1000px]">
                         <thead>
                             <tr class="bg-slate-900/90 text-slate-300 border-b border-slate-700 text-xs font-bold uppercase tracking-wider">
                                 <th class="p-4">電路類型</th>
                                 <th class="p-4">燈泡亮度評級</th>
                                 <th class="p-4 min-w-[180px]">相對發光比例</th>
-                                <th class="p-4 min-w-[200px]">電池電量消耗比較</th>
+                                <th class="p-4 min-w-[260px]">電池電量消耗比較</th>
+                                <th class="p-4 min-w-[220px]">電力消耗百分比<br><span class="font-normal normal-case text-slate-400 tracking-normal">每顆電池，愈長愈耗電</span></th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-700/60 text-xs md:text-sm">
@@ -301,6 +311,14 @@
                                     </div>
                                 </td>
                                 <td class="p-4 text-slate-200 leading-relaxed">燈泡獲得完整的 1.5V，電池供應基準電流，所以<strong>消耗速度為基準</strong></td>
+                                <td class="p-4">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-700">
+                                            <div class="bg-gradient-to-r from-amber-500 to-yellow-400 h-full rounded-full" style="width: 50%;"></div>
+                                        </div>
+                                        <span class="text-xs text-amber-300 font-mono font-bold">100%</span>
+                                    </div>
+                                </td>
                             </tr>
                             <!-- 2. 電池串聯 -->
                             <tr class="hover:bg-slate-700/40 transition-colors bg-amber-500/5">
@@ -318,6 +336,14 @@
                                     </div>
                                 </td>
                                 <td class="p-4 text-slate-200 leading-relaxed">電壓加倍成 3.0V，所以<strong>更亮</strong>，但每顆電池都要供應<strong>兩倍電流</strong>，所以<strong>電池消耗得更快</strong></td>
+                                <td class="p-4">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-700">
+                                            <div class="bg-gradient-to-r from-rose-500 to-red-400 h-full rounded-full" style="width: 100%;"></div>
+                                        </div>
+                                        <span class="text-xs text-rose-300 font-mono font-bold">200%</span>
+                                    </div>
+                                </td>
                             </tr>
                             <!-- 3. 電池並聯 -->
                             <tr class="hover:bg-slate-700/40 transition-colors">
@@ -335,6 +361,14 @@
                                     </div>
                                 </td>
                                 <td class="p-4 text-slate-200 leading-relaxed">兩顆電池各負擔一半電流，所以<strong>用得更久</strong>，但不會更亮</td>
+                                <td class="p-4">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-700">
+                                            <div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full" style="width: 25%;"></div>
+                                        </div>
+                                        <span class="text-xs text-emerald-300 font-mono font-bold">50%</span>
+                                    </div>
+                                </td>
                             </tr>
                             <!-- 4. 燈泡串聯 -->
                             <tr class="hover:bg-slate-700/40 transition-colors">
@@ -352,6 +386,14 @@
                                     </div>
                                 </td>
                                 <td class="p-4 text-slate-200 leading-relaxed">兩顆燈泡平分電壓、電流剩一半，所以<strong>燈泡變暗</strong>，但<strong>電池用得更久</strong></td>
+                                <td class="p-4">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-700">
+                                            <div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full" style="width: 25%;"></div>
+                                        </div>
+                                        <span class="text-xs text-emerald-300 font-mono font-bold">50%</span>
+                                    </div>
+                                </td>
                             </tr>
                             <!-- 5. 燈泡並聯 -->
                             <tr class="hover:bg-slate-700/40 transition-colors">
@@ -369,6 +411,14 @@
                                     </div>
                                 </td>
                                 <td class="p-4 text-slate-200 leading-relaxed">每顆燈泡都有完整的 1.5V，但電池要供應<strong>兩倍電流</strong>，所以<strong>電池消耗得更快</strong></td>
+                                <td class="p-4">
+                                    <div class="flex items-center space-x-2">
+                                        <div class="w-full bg-slate-900 rounded-full h-3 overflow-hidden border border-slate-700">
+                                            <div class="bg-gradient-to-r from-rose-500 to-red-400 h-full rounded-full" style="width: 100%;"></div>
+                                        </div>
+                                        <span class="text-xs text-rose-300 font-mono font-bold">200%</span>
+                                    </div>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -767,9 +817,9 @@
                 <rect x="-44" y="-22" width="86" height="44" rx="8" fill="url(#batg-${sfx})" stroke="#64748b" stroke-width="2"/>
                 <rect x="42" y="-9" width="7" height="18" rx="2" fill="#cbd5e1"/>
                 <rect x="-44" y="-22" width="22" height="44" rx="8" fill="#3b82f6" opacity="0.28"/>
-                <text x="0" y="6" text-anchor="middle" font-size="16" font-weight="700" fill="#e2e8f0">1.5V</text>
-                <text x="30" y="6" text-anchor="middle" font-size="16" font-weight="700" fill="#fca5a5">+</text>
-                <text x="-32" y="6" text-anchor="middle" font-size="18" font-weight="700" fill="#93c5fd">−</text>
+                <text x="0" y="6" text-anchor="middle" font-size="20" font-weight="700" fill="#e2e8f0">1.5V</text>
+                <text x="30" y="6" text-anchor="middle" font-size="20" font-weight="700" fill="#fca5a5">+</text>
+                <text x="-32" y="6" text-anchor="middle" font-size="22" font-weight="700" fill="#93c5fd">−</text>
                 <circle cx="60" cy="0" r="7" fill="#ef4444" stroke="#0f172a" stroke-width="2"/>
                 <circle cx="-60" cy="0" r="7" fill="#3b82f6" stroke="#0f172a" stroke-width="2"/>
             </g>`;
@@ -799,7 +849,7 @@
             let label = '';
             if (powered) {
                 const txt = level < 0.05 ? '不亮' : `亮度 ${Math.round(level * 20) * 5}%`;
-                label = `<text x="${c.x}" y="${c.y + 78}" text-anchor="middle" font-size="14" font-weight="700" fill="${lit ? '#fcd34d' : '#64748b'}">${txt}</text>`;
+                label = `<text x="${c.x}" y="${c.y + 78}" text-anchor="middle" font-size="18" font-weight="700" fill="${lit ? '#fcd34d' : '#64748b'}">${txt}</text>`;
             }
             return body + label;
         }
@@ -816,7 +866,7 @@
                 ${lever}
                 <circle cx="-24" cy="0" r="5" fill="#fbbf24"/>
                 <circle cx="26" cy="0" r="5" fill="#fbbf24"/>
-                <text x="0" y="26" text-anchor="middle" font-size="12" font-weight="700" fill="${c.closed ? '#6ee7b7' : '#94a3b8'}">${c.closed ? 'ON' : 'OFF'}</text>
+                <text x="0" y="26" text-anchor="middle" font-size="15" font-weight="700" fill="${c.closed ? '#6ee7b7' : '#94a3b8'}">${c.closed ? 'ON' : 'OFF'}</text>
                 <circle cx="-40" cy="0" r="7" fill="#f59e0b" stroke="#0f172a" stroke-width="2"/>
                 <circle cx="40" cy="0" r="7" fill="#f59e0b" stroke="#0f172a" stroke-width="2"/>
             </g>`;
@@ -852,8 +902,8 @@
             </defs>`;
 
             if (currentTab === 'assembly' && comps.length === 0 && wires.length === 0) {
-                html += `<text x="400" y="240" text-anchor="middle" font-size="20" fill="#64748b">畫布是空的</text>
-                         <text x="400" y="272" text-anchor="middle" font-size="15" fill="#475569">點擊上方按鈕加入電池、燈泡、開關與電線</text>`;
+                html += `<text x="400" y="240" text-anchor="middle" font-size="25" fill="#64748b">畫布是空的</text>
+                         <text x="400" y="272" text-anchor="middle" font-size="19" fill="#475569">點擊上方按鈕加入電池、燈泡、開關與電線</text>`;
             }
 
             // 1. 電線 (在元件下方)
@@ -909,7 +959,7 @@
                         </g>
                         <g data-role="del-wire" data-id="${w.id}" style="cursor:pointer">
                             <circle cx="${m.x}" cy="${m.y - 38}" r="16" fill="#be123c" stroke="#fecdd3" stroke-width="2"/>
-                            <text x="${m.x}" y="${m.y - 32}" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">✕</text>
+                            <text x="${m.x}" y="${m.y - 32}" text-anchor="middle" font-size="22" font-weight="700" fill="#fff">✕</text>
                         </g>`;
                     }
                 });
@@ -923,11 +973,11 @@
                         </g>
                         <g data-role="rot" data-id="${c.id}" style="cursor:pointer">
                             <circle cx="${c.x - 26}" cy="${c.y - 82}" r="16" fill="#0369a1" stroke="#bae6fd" stroke-width="2"/>
-                            <text x="${c.x - 26}" y="${c.y - 75}" text-anchor="middle" font-size="20" font-weight="700" fill="#fff">↻</text>
+                            <text x="${c.x - 26}" y="${c.y - 75}" text-anchor="middle" font-size="25" font-weight="700" fill="#fff">↻</text>
                         </g>
                         <g data-role="del-comp" data-id="${c.id}" style="cursor:pointer">
                             <circle cx="${c.x + 26}" cy="${c.y - 82}" r="16" fill="#be123c" stroke="#fecdd3" stroke-width="2"/>
-                            <text x="${c.x + 26}" y="${c.y - 76}" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">✕</text>
+                            <text x="${c.x + 26}" y="${c.y - 76}" text-anchor="middle" font-size="22" font-weight="700" fill="#fff">✕</text>
                         </g>`;
                     }
                 }
