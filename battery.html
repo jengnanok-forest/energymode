@@ -223,6 +223,10 @@
                         <span class="text-base">🔌</span>
                         <span id="switch-btn-label">+ 開關 (0/2)</span>
                     </button>
+                    <button id="add-motor-btn" onclick="spawnComponent('motor')" class="h-11 px-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs md:text-sm font-semibold flex items-center space-x-1.5 active:scale-95 transition-all">
+                        <span class="text-base">⚙️</span>
+                        <span id="motor-btn-label">+ 馬達 (0/2)</span>
+                    </button>
                     <button onclick="spawnWire()" class="h-11 px-3.5 rounded-xl bg-sky-950/80 hover:bg-sky-900 border border-sky-700 text-sky-200 text-xs md:text-sm font-semibold flex items-center space-x-1.5 active:scale-95 transition-all shadow-md shadow-sky-950/50">
                         <span class="text-base">⚡</span>
                         <span>+ 電線 (可彎曲)</span>
@@ -231,7 +235,7 @@
 
                 <!-- 輔助操控區 -->
                 <div class="flex items-center space-x-2">
-                    <span class="text-xs text-slate-400 hidden lg:inline">提示：可直接將電池與燈泡端點靠攏對接，或用電線串接！</span>
+                    <span class="text-xs text-slate-400 hidden lg:inline">提示：元件端點可直接靠攏對接，或用電線串接；選取馬達按 ⇄ 可對調接線，馬達就會反轉！</span>
                     <button onclick="clearAssemblyCanvas()" class="h-11 px-3.5 rounded-xl bg-rose-950/60 hover:bg-rose-900 border border-rose-800/80 text-rose-300 text-xs md:text-sm font-semibold flex items-center space-x-1 active:scale-95 transition-all">
                         <span>🗑️</span>
                         <span>清空組裝畫布</span>
@@ -631,6 +635,8 @@
         const BAT_EMF = 1.5;      // 電池電動勢 (V)
         const BAT_R = 0.01;       // 電池內阻
         const BULB_R = 1;         // 燈泡電阻
+        const MOTOR_R = 1;        // 馬達線圈電阻
+        const MOTOR_RPS_DEG = 540; // 標準電流下馬達每秒轉動角度
         const WIRE_R = 0.001;     // 導線 / 閉合開關電阻
         const SNAP_PX = 14;       // 端點靠攏視為連通的距離
         const DOCK_PX = 26;       // 元件放開時自動對接距離
@@ -644,12 +650,14 @@
         const TERMS = {
             battery: { pos: { x: 60, y: 0 }, neg: { x: -60, y: 0 } },
             bulb:    { shellL: { x: -18, y: 30 }, shellR: { x: 18, y: 30 }, tip: { x: 0, y: 66 } }, // 螺紋金屬體(左右兩側)與底部接點
-            switch:  { t1: { x: -40, y: 0 }, t2: { x: 40, y: 0 } }
+            switch:  { t1: { x: -40, y: 0 }, t2: { x: 40, y: 0 } },
+            motor:   { plus: { x: 62, y: -44 }, minus: { x: 62, y: 44 } } // 電流從 + 端流入 = 正轉
         };
         const BOXES = {
             battery: { x: -70, y: -32, w: 140, h: 64 },
             bulb:    { x: -46, y: -52, w: 92, h: 124 },
-            switch:  { x: -52, y: -30, w: 104, h: 60 }
+            switch:  { x: -52, y: -30, w: 104, h: 60 },
+            motor:   { x: -76, y: -52, w: 164, h: 104 }
         };
 
         let sim = null;
@@ -771,13 +779,17 @@
             const wireEls = wires.map(w => ({ id: w.id, a: nodeOf(w.id + ':start'), b: nodeOf(w.id + ':end') }));
             wireEls.forEach(e => stamp(e.a, e.b, 1 / WIRE_R));
 
-            const bulbEls = [], batEls = [];
+            const bulbEls = [], batEls = [], motorEls = [];
             let samePoleShort = false;
             comps.forEach(c => {
                 if (c.type === 'bulb') {
                     const e = { id: c.id, a: nodeOf(c.id + ':shellL'), b: nodeOf(c.id + ':tip') };
                     bulbEls.push(e);
                     stamp(e.a, e.b, 1 / BULB_R);
+                } else if (c.type === 'motor') {
+                    const e = { id: c.id, a: nodeOf(c.id + ':plus'), b: nodeOf(c.id + ':minus') };
+                    motorEls.push(e);
+                    stamp(e.a, e.b, 1 / MOTOR_R);
                 } else if (c.type === 'switch') {
                     if (c.closed) stamp(nodeOf(c.id + ':t1'), nodeOf(c.id + ':t2'), 1 / WIRE_R);
                 } else if (c.type === 'battery') {
@@ -797,13 +809,21 @@
             wireEls.forEach(e => { wireI[e.id] = e.a === e.b ? 0 : (V[e.a] - V[e.b]) / WIRE_R; });
             const bulbLevel = {};
             bulbEls.forEach(e => { bulbLevel[e.id] = Math.abs(V[e.a] - V[e.b]) / BULB_R / I_REF; });
+            // 馬達：電流由 + 端流向 − 端為正轉 (順時針)，反接則反轉
+            const motors = {}, motorI = {};
+            motorEls.forEach(e => {
+                const cur = e.a === e.b ? 0 : (V[e.a] - V[e.b]) / MOTOR_R;
+                motorI[e.id] = cur;
+                const ratio = Math.abs(cur) / I_REF;
+                motors[e.id] = ratio < 0.05 ? 0 : Math.sign(cur) * Math.min(ratio, 2.2) * MOTOR_RPS_DEG;
+            });
             let maxBat = 0;
             batEls.forEach(e => {
                 if (e.p === e.n) return;
                 const cur = Math.abs((BAT_EMF - (V[e.p] - V[e.n])) / BAT_R);
                 maxBat = Math.max(maxBat, cur);
             });
-            return { wireI, bulbLevel, short: samePoleShort || maxBat > SHORT_CURRENT };
+            return { wireI, bulbLevel, motors, motorI, short: samePoleShort || maxBat > SHORT_CURRENT };
         }
 
         // ==================== SVG 繪製 ====================
@@ -861,6 +881,83 @@
             return body + label;
         }
 
+        const motorAngles = {};
+
+        function sectorPath(cx, cy, r, a0, a1) {
+            const p = a => [cx + r * Math.cos(a * Math.PI / 180), cy + r * Math.sin(a * Math.PI / 180)];
+            const [x0, y0] = p(a0), [x1, y1] = p(a1);
+            return `M ${cx} ${cy} L ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)} Z`;
+        }
+
+        function drawMotor(c, sfx, cur, powered) {
+            const ang = motorAngles[c.id] || 0;
+            const colors = ['#ef4444', '#facc15', '#38bdf8'];
+            const sectors = colors.map((col, i) => `<path d="${sectorPath(-52, 0, 18, i * 120, i * 120 + 120)}" fill="${col}"/>`).join('');
+            const body = `
+            <g transform="translate(${c.x},${c.y}) rotate(${c.rotation || 0})">
+                <rect x="-38" y="-4" width="30" height="8" rx="2" fill="url(#mtr-${sfx})" stroke="#64748b" stroke-width="1.5"/>
+                <rect x="-14" y="-10" width="6" height="20" rx="2" fill="#64748b" stroke="#475569" stroke-width="1.5"/>
+                <rect x="-10" y="-28" width="64" height="56" rx="8" fill="url(#mtrb-${sfx})" stroke="#64748b" stroke-width="2"/>
+                <line x1="-4" y1="-20" x2="48" y2="-20" stroke="#cbd5e1" stroke-width="2" opacity="0.7"/>
+                <line x1="-4" y1="20" x2="48" y2="20" stroke="#64748b" stroke-width="2" opacity="0.5"/>
+                <circle cx="8" cy="12" r="3" fill="#334155"/>
+                <rect x="52" y="-26" width="18" height="52" rx="8" fill="#f1ead0" stroke="#cbbf8f" stroke-width="2"/>
+                <line x1="61" y1="-20" x2="61" y2="20" stroke="#d9cfa0" stroke-width="2"/>
+                <rect x="58" y="-48" width="9" height="24" rx="2" fill="#d97706" stroke="#92400e" stroke-width="1.5"/>
+                <rect x="58" y="24" width="9" height="24" rx="2" fill="#d97706" stroke="#92400e" stroke-width="1.5"/>
+                <circle cx="62.5" cy="-38" r="2.3" fill="#1e293b"/>
+                <circle cx="62.5" cy="38" r="2.3" fill="#1e293b"/>
+                <circle cx="62" cy="-44" r="6" fill="#ef4444" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="62" cy="44" r="6" fill="#3b82f6" stroke="#0f172a" stroke-width="2"/>
+                <text x="77" y="-36" font-size="22" font-weight="700" fill="#fca5a5">+</text>
+                <text x="77" y="52" font-size="24" font-weight="700" fill="#93c5fd">−</text>
+                <g id="motor-disc-${c.id}-${sfx}" transform="rotate(${ang.toFixed(1)} -52 0)">
+                    <circle cx="-52" cy="0" r="20" fill="#f8fafc" stroke="#cbd5e1" stroke-width="2"/>
+                    ${sectors}
+                    <circle cx="-38" cy="0" r="3" fill="#0f172a"/>
+                </g>
+                <circle cx="-52" cy="0" r="4" fill="#334155" stroke="#e2e8f0" stroke-width="1.5"/>
+            </g>`;
+            let label = '';
+            if (powered) {
+                const ratio = Math.abs(cur) / I_REF;
+                let txt, col;
+                if (ratio < 0.05) { txt = '停止'; col = '#64748b'; }
+                else if (cur > 0) { txt = `↻ 正轉 ${Math.round(ratio * 20) * 5}%`; col = '#34d399'; }
+                else { txt = `↺ 反轉 ${Math.round(ratio * 20) * 5}%`; col = '#fb923c'; }
+                label = `<text x="${c.x}" y="${c.y + 82}" text-anchor="middle" font-size="19" font-weight="700" fill="${col}">${txt}</text>`;
+            }
+            return body + label;
+        }
+
+        // 馬達旋轉動畫：只更新轉盤角度，不重繪整個畫布
+        let lastFrameTs = 0;
+        function animateMotors(ts) {
+            const dt = lastFrameTs ? Math.min(0.1, (ts - lastFrameTs) / 1000) : 0;
+            lastFrameTs = ts;
+            if (sim && sim.motors && currentTab !== 'theory') {
+                const sfx = currentTab[0];
+                Object.keys(sim.motors).forEach(id => {
+                    const om = sim.motors[id];
+                    if (!om) return;
+                    motorAngles[id] = (((motorAngles[id] || 0) + om * dt) % 360 + 360) % 360;
+                    const el = document.getElementById('motor-disc-' + id + '-' + sfx);
+                    if (el) el.setAttribute('transform', `rotate(${motorAngles[id].toFixed(1)} -52 0)`);
+                });
+            }
+            requestAnimationFrame(animateMotors);
+        }
+
+        // 對調馬達兩端的接線 (電源線反接)
+        function swapMotorPolarity(id) {
+            getActiveData().wires.forEach(w => ['start', 'end'].forEach(k => {
+                const n = w[k];
+                if (n.snapComp === id) n.snapTerm = n.snapTerm === 'plus' ? 'minus' : 'plus';
+            }));
+            playSound('click');
+            renderCanvas();
+        }
+
         function drawSwitch(c) {
             const lever = c.closed
                 ? '<line x1="-24" y1="0" x2="26" y2="0" stroke="#e2e8f0" stroke-width="5" stroke-linecap="round"/>'
@@ -906,6 +1003,12 @@
                     <stop offset="0" stop-color="#64748b"/><stop offset="0.35" stop-color="#e2e8f0"/>
                     <stop offset="0.7" stop-color="#94a3b8"/><stop offset="1" stop-color="#475569"/>
                 </linearGradient>
+                <linearGradient id="mtrb-${sfx}" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#f1f5f9"/><stop offset="0.5" stop-color="#cbd5e1"/><stop offset="1" stop-color="#8b9bb0"/>
+                </linearGradient>
+                <linearGradient id="mtr-${sfx}" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#e2e8f0"/><stop offset="0.5" stop-color="#94a3b8"/><stop offset="1" stop-color="#e2e8f0"/>
+                </linearGradient>
                 <radialGradient id="halo-${sfx}">
                     <stop offset="0" stop-color="#fde047" stop-opacity="0.9"/>
                     <stop offset="1" stop-color="#f59e0b" stop-opacity="0"/>
@@ -942,6 +1045,7 @@
                 let inner = '';
                 if (c.type === 'battery') inner = drawBattery(c, sfx);
                 else if (c.type === 'bulb') inner = drawBulb(c, sfx, sim ? (sim.bulbLevel[c.id] || 0) : 0, !!sim);
+                else if (c.type === 'motor') inner = drawMotor(c, sfx, sim ? (sim.motorI[c.id] || 0) : 0, !!sim);
                 else inner = drawSwitch(c);
                 html += `<g data-role="comp" data-id="${c.id}" style="cursor:grab">
                     <g transform="translate(${c.x},${c.y}) rotate(${c.rotation || 0})">
@@ -983,12 +1087,16 @@
                             <rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" rx="10" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="6 5"/>
                         </g>
                         <g data-role="rot" data-id="${c.id}" style="cursor:pointer">
-                            <circle cx="${c.x - 26}" cy="${c.y - 82}" r="16" fill="#0369a1" stroke="#bae6fd" stroke-width="2"/>
-                            <text x="${c.x - 26}" y="${c.y - 75}" text-anchor="middle" font-size="25" font-weight="700" fill="#fff">↻</text>
+                            <circle cx="${c.x - (c.type === 'motor' ? 56 : 26)}" cy="${c.y - 82}" r="16" fill="#0369a1" stroke="#bae6fd" stroke-width="2"/>
+                            <text x="${c.x - (c.type === 'motor' ? 56 : 26)}" y="${c.y - 75}" text-anchor="middle" font-size="25" font-weight="700" fill="#fff">↻</text>
                         </g>
+                        ${c.type === 'motor' ? `<g data-role="swap" data-id="${c.id}" style="cursor:pointer">
+                            <circle cx="${c.x}" cy="${c.y - 82}" r="16" fill="#0f766e" stroke="#99f6e4" stroke-width="2"/>
+                            <text x="${c.x}" y="${c.y - 75}" text-anchor="middle" font-size="22" font-weight="700" fill="#fff">⇄</text>
+                        </g>` : ''}
                         <g data-role="del-comp" data-id="${c.id}" style="cursor:pointer">
-                            <circle cx="${c.x + 26}" cy="${c.y - 82}" r="16" fill="#be123c" stroke="#fecdd3" stroke-width="2"/>
-                            <text x="${c.x + 26}" y="${c.y - 76}" text-anchor="middle" font-size="22" font-weight="700" fill="#fff">✕</text>
+                            <circle cx="${c.x + (c.type === 'motor' ? 56 : 26)}" cy="${c.y - 82}" r="16" fill="#be123c" stroke="#fecdd3" stroke-width="2"/>
+                            <text x="${c.x + (c.type === 'motor' ? 56 : 26)}" y="${c.y - 76}" text-anchor="middle" font-size="22" font-weight="700" fill="#fff">✕</text>
                         </g>`;
                     }
                 }
@@ -1077,6 +1185,7 @@
             };
             set('add-bat-btn', 'bat-btn-label', `+ 電池 (${n('battery')}/${MAX_PER_TYPE})`, n('battery'));
             set('add-bulb-btn', 'bulb-btn-label', `+ 燈泡 (${n('bulb')}/${MAX_PER_TYPE})`, n('bulb'));
+            set('add-motor-btn', 'motor-btn-label', `+ 馬達 (${n('motor')}/${MAX_PER_TYPE})`, n('motor'));
             set('add-switch-btn', 'switch-btn-label', `+ 開關 (${n('switch')}/${MAX_PER_TYPE})`, n('switch'));
         }
 
@@ -1084,7 +1193,8 @@
             const slots = {
                 battery: [{ x: 200, y: 140 }, { x: 420, y: 140 }],
                 bulb:    [{ x: 280, y: 300 }, { x: 520, y: 300 }],
-                switch:  [{ x: 160, y: 420 }, { x: 640, y: 420 }]
+                switch:  [{ x: 160, y: 420 }, { x: 640, y: 420 }],
+                motor:   [{ x: 630, y: 140 }, { x: 430, y: 440 }]
             };
             const existing = assemblyComponents.filter(c => c.type === type);
             if (existing.length >= MAX_PER_TYPE) { playSound('alert'); return; }
@@ -1183,6 +1293,8 @@
                 rotatingComponent = findComp(id);
             } else if (role === 'del-comp') {
                 deleteComponent(id);
+            } else if (role === 'swap') {
+                swapMotorPolarity(id);
             } else if (role === 'del-wire') {
                 deleteWire(id);
             } else if (role === 'wend') {
@@ -1473,6 +1585,7 @@
             updatePowerUI();
             updateCounts();
             loadPreset(1);
+            requestAnimationFrame(animateMotors);
         });
     </script>
 </body>
