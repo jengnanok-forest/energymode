@@ -549,8 +549,8 @@
                     { id: 'l1', type: 'bulb', x: 400, y: 130, rotation: 0 }
                 ];
                 presetWires = [
-                    { id: 'w1', start: { x: 460, y: 340, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 435, y: 170, snapComp: 'l1', snapTerm: 't2' }, cp: { x: 500, y: 255, isCustom: true } },
-                    { id: 'w2', start: { x: 340, y: 340, snapComp: 'b1', snapTerm: 'neg' }, end: { x: 365, y: 170, snapComp: 'l1', snapTerm: 't1' }, cp: { x: 300, y: 255, isCustom: true } }
+                    { id: 'w1', start: { x: 460, y: 340, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 418, y: 160, snapComp: 'l1', snapTerm: 'shellR' }, cp: { x: 500, y: 250, isCustom: true } },
+                    { id: 'w2', start: { x: 340, y: 340, snapComp: 'b1', snapTerm: 'neg' }, end: { x: 400, y: 196, snapComp: 'l1', snapTerm: 'tip' }, cp: { x: 335, y: 270, isCustom: true } }
                 ];
             } else if (id === 2) { // 2. 電池串聯
                 if (hintText) hintText.innerText = "2 顆電池頭尾串聯，總電壓升至 3.0V，燈泡發出極亮強光 (🌟🌟🌟🌟)。";
@@ -561,8 +561,8 @@
                 ];
                 presetWires = [
                     { id: 'w1', start: { x: 400, y: 340, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 420, y: 340, snapComp: 'b2', snapTerm: 'neg' }, cp: { x: 410, y: 385, isCustom: true } },
-                    { id: 'w2', start: { x: 540, y: 340, snapComp: 'b2', snapTerm: 'pos' }, end: { x: 445, y: 170, snapComp: 'l1', snapTerm: 't2' }, cp: { x: 560, y: 255, isCustom: true } },
-                    { id: 'w3', start: { x: 280, y: 340, snapComp: 'b1', snapTerm: 'neg' }, end: { x: 375, y: 170, snapComp: 'l1', snapTerm: 't1' }, cp: { x: 260, y: 255, isCustom: true } }
+                    { id: 'w2', start: { x: 540, y: 340, snapComp: 'b2', snapTerm: 'pos' }, end: { x: 428, y: 160, snapComp: 'l1', snapTerm: 'shellR' }, cp: { x: 560, y: 250, isCustom: true } },
+                    { id: 'w3', start: { x: 280, y: 340, snapComp: 'b1', snapTerm: 'neg' }, end: { x: 410, y: 196, snapComp: 'l1', snapTerm: 'tip' }, cp: { x: 270, y: 250, isCustom: true } }
                 ];
             } else if (id === 3) { // 3. 電池並聯
                 if (hintText) hintText.innerText = "2 顆電池並聯，電壓維持 1.5V，燈泡保持標準亮度 (🌟🌟)，使用時間加倍。";
@@ -574,8 +574,8 @@
                 presetWires = [
                     { id: 'w1', start: { x: 460, y: 290, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 460, y: 400, snapComp: 'b2', snapTerm: 'pos' }, cp: { x: 500, y: 345, isCustom: true } },
                     { id: 'w2', start: { x: 340, y: 290, snapComp: 'b1', snapTerm: 'neg' }, end: { x: 340, y: 400, snapComp: 'b2', snapTerm: 'neg' }, cp: { x: 300, y: 345, isCustom: true } },
-                    { id: 'w3', start: { x: 460, y: 290, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 435, y: 150, snapComp: 'l1', snapTerm: 't2' }, cp: { x: 500, y: 220, isCustom: true } },
-                    { id: 'w4', start: { x: 340, y: 290, snapComp: 'b1', snapTerm: 'neg' }, end: { x: 365, y: 150, snapComp: 'l1', snapTerm: 't1' }, cp: { x: 300, y: 220, isCustom: true } }
+                    { id: 'w3', start: { x: 460, y: 290, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 418, y: 140, snapComp: 'l1', snapTerm: 'shellR' }, cp: { x: 500, y: 215, isCustom: true } },
+                    { id: 'w4', start: { x: 340, y: 290, snapComp: 'b1', snapTerm: 'neg' }, end: { x: 400, y: 176, snapComp: 'l1', snapTerm: 'tip' }, cp: { x: 330, y: 235, isCustom: true } }
                 ];
             } else if (id === 4) { // 4. 燈泡串聯
                 if (hintText) hintText.innerText = "2 顆燈泡串聯平分電壓，電流減半，燈泡亮度變暗 (🌟)。";
@@ -585,9 +585,9 @@
                     { id: 'l2', type: 'bulb', x: 500, y: 130, rotation: 0 }
                 ];
                 presetWires = [
-                    { id: 'w1', start: { x: 460, y: 350, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 535, y: 170, snapComp: 'l2', snapTerm: 't2' }, cp: { x: 570, y: 260, isCustom: true } },
-                    { id: 'w2', start: { x: 465, y: 170, snapComp: 'l2', snapTerm: 't1' }, end: { x: 335, y: 170, snapComp: 'l1', snapTerm: 't2' }, cp: { x: 400, y: 230, isCustom: true } },
-                    { id: 'w3', start: { x: 265, y: 170, snapComp: 'l1', snapTerm: 't1' }, end: { x: 340, y: 350, snapComp: 'b1', snapTerm: 'neg' }, cp: { x: 230, y: 260, isCustom: true } }
+                    { id: 'w1', start: { x: 460, y: 350, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 518, y: 160, snapComp: 'l2', snapTerm: 'shellR' }, cp: { x: 580, y: 260, isCustom: true } },
+                    { id: 'w2', start: { x: 500, y: 196, snapComp: 'l2', snapTerm: 'tip' }, end: { x: 318, y: 160, snapComp: 'l1', snapTerm: 'shellR' }, cp: { x: 410, y: 235, isCustom: true } },
+                    { id: 'w3', start: { x: 300, y: 196, snapComp: 'l1', snapTerm: 'tip' }, end: { x: 340, y: 350, snapComp: 'b1', snapTerm: 'neg' }, cp: { x: 290, y: 280, isCustom: true } }
                 ];
             } else if (id === 5) { // 5. 燈泡並聯
                 if (hintText) hintText.innerText = "2 顆燈泡並聯各有獨立迴路，獲得相同全電壓，均維持標準亮度 (🌟🌟)。";
@@ -597,10 +597,10 @@
                     { id: 'l2', type: 'bulb', x: 400, y: 400, rotation: 180 }
                 ];
                 presetWires = [
-                    { id: 'w1', start: { x: 460, y: 250, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 435, y: 140, snapComp: 'l1', snapTerm: 't2' }, cp: { x: 500, y: 195, isCustom: true } },
-                    { id: 'w2', start: { x: 460, y: 250, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 435, y: 360, snapComp: 'l2', snapTerm: 't1' }, cp: { x: 500, y: 305, isCustom: true } },
-                    { id: 'w3', start: { x: 365, y: 140, snapComp: 'l1', snapTerm: 't1' }, end: { x: 340, y: 250, snapComp: 'b1', snapTerm: 'neg' }, cp: { x: 300, y: 195, isCustom: true } },
-                    { id: 'w4', start: { x: 365, y: 360, snapComp: 'l2', snapTerm: 't2' }, end: { x: 340, y: 250, snapComp: 'b1', snapTerm: 'neg' }, cp: { x: 300, y: 305, isCustom: true } }
+                    { id: 'w1', start: { x: 460, y: 250, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 418, y: 130, snapComp: 'l1', snapTerm: 'shellR' }, cp: { x: 500, y: 185, isCustom: true } },
+                    { id: 'w2', start: { x: 460, y: 250, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 418, y: 370, snapComp: 'l2', snapTerm: 'shellL' }, cp: { x: 500, y: 315, isCustom: true } },
+                    { id: 'w3', start: { x: 340, y: 250, snapComp: 'b1', snapTerm: 'neg' }, end: { x: 400, y: 166, snapComp: 'l1', snapTerm: 'tip' }, cp: { x: 330, y: 200, isCustom: true } },
+                    { id: 'w4', start: { x: 340, y: 250, snapComp: 'b1', snapTerm: 'neg' }, end: { x: 400, y: 334, snapComp: 'l2', snapTerm: 'tip' }, cp: { x: 330, y: 300, isCustom: true } }
                 ];
             } else if (id === 6) { // 6. ⚠️ 電池短路
                 if (hintText) hintText.innerText = "⚠️ 電池正負極被電線直接連通，無負載分流導致短路警告！";
@@ -610,8 +610,8 @@
                 ];
                 presetWires = [
                     { id: 'w1', start: { x: 460, y: 340, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 340, y: 340, snapComp: 'b1', snapTerm: 'neg' }, cp: { x: 400, y: 440, isCustom: true } },
-                    { id: 'w2', start: { x: 460, y: 340, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 435, y: 170, snapComp: 'l1', snapTerm: 't2' }, cp: { x: 500, y: 255, isCustom: true } },
-                    { id: 'w3', start: { x: 340, y: 340, snapComp: 'b1', snapTerm: 'neg' }, end: { x: 365, y: 170, snapComp: 'l1', snapTerm: 't1' }, cp: { x: 300, y: 255, isCustom: true } }
+                    { id: 'w2', start: { x: 460, y: 340, snapComp: 'b1', snapTerm: 'pos' }, end: { x: 418, y: 160, snapComp: 'l1', snapTerm: 'shellR' }, cp: { x: 500, y: 250, isCustom: true } },
+                    { id: 'w3', start: { x: 340, y: 340, snapComp: 'b1', snapTerm: 'neg' }, end: { x: 400, y: 196, snapComp: 'l1', snapTerm: 'tip' }, cp: { x: 335, y: 270, isCustom: true } }
                 ];
             } else if (id === 7) { // 7. ⚠️ 一電池 + 一電線短路
                 if (hintText) hintText.innerText = "⚠️ 只有 1 顆電池和 1 條電線：電線把正極與負極直接相連，電流不經任何負載，立刻短路！";
@@ -643,12 +643,12 @@
         // 各元件端子相對於中心的位置
         const TERMS = {
             battery: { pos: { x: 60, y: 0 }, neg: { x: -60, y: 0 } },
-            bulb:    { t1: { x: -35, y: 40 }, t2: { x: 35, y: 40 } },
+            bulb:    { shellL: { x: -18, y: 30 }, shellR: { x: 18, y: 30 }, tip: { x: 0, y: 66 } }, // 螺紋金屬體(左右兩側)與底部接點
             switch:  { t1: { x: -40, y: 0 }, t2: { x: 40, y: 0 } }
         };
         const BOXES = {
             battery: { x: -70, y: -32, w: 140, h: 64 },
-            bulb:    { x: -52, y: -52, w: 104, h: 108 },
+            bulb:    { x: -46, y: -52, w: 92, h: 124 },
             switch:  { x: -52, y: -30, w: 104, h: 60 }
         };
 
@@ -750,6 +750,11 @@
                 });
             });
 
+            // 螺紋金屬體的左右兩側是同一個導體
+            comps.forEach(c => {
+                if (c.type === 'bulb') union(idx[c.id + ':shellL'], idx[c.id + ':shellR']);
+            });
+
             const nodeIdx = {};
             let N = 0;
             pts.forEach((_, i) => { const r = find(i); if (nodeIdx[r] === undefined) nodeIdx[r] = N++; });
@@ -770,7 +775,7 @@
             let samePoleShort = false;
             comps.forEach(c => {
                 if (c.type === 'bulb') {
-                    const e = { id: c.id, a: nodeOf(c.id + ':t1'), b: nodeOf(c.id + ':t2') };
+                    const e = { id: c.id, a: nodeOf(c.id + ':shellL'), b: nodeOf(c.id + ':tip') };
                     bulbEls.push(e);
                     stamp(e.a, e.b, 1 / BULB_R);
                 } else if (c.type === 'switch') {
@@ -828,28 +833,30 @@
         function drawBulb(c, sfx, level, powered) {
             const lit = powered && level >= 0.05;
             const cls = powered ? glowClass(level) : 'glow-0';
-            let fill = 'rgba(148,163,184,0.18)';
+            let fill = 'rgba(186,230,253,0.22)';
             if (lit) fill = level >= 1.6 ? '#fef08a' : (level >= 0.85 ? 'rgba(250,204,21,0.85)' : 'rgba(250,204,21,0.4)');
-            const halo = lit ? `<circle cx="0" cy="-8" r="${36 + Math.min(level, 2) * 32}" fill="url(#halo-${sfx})" opacity="${Math.min(0.95, 0.25 + level * 0.35)}"/>` : '';
+            const halo = lit ? `<circle cx="0" cy="-18" r="${34 + Math.min(level, 2) * 32}" fill="url(#halo-${sfx})" opacity="${Math.min(0.95, 0.25 + level * 0.35)}"/>` : '';
+            const threads = [21, 28, 35, 42, 49].map(y => `<path d="M -18 ${y} Q 0 ${y + 5} 18 ${y}" fill="none" stroke="#475569" stroke-width="2"/>`).join('');
             const body = `
             <g transform="translate(${c.x},${c.y}) rotate(${c.rotation || 0})">
                 ${halo}
-                <line x1="-20" y1="40" x2="-35" y2="40" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
-                <line x1="20" y1="40" x2="35" y2="40" stroke="#94a3b8" stroke-width="5" stroke-linecap="round"/>
-                <rect x="-20" y="22" width="40" height="26" rx="5" fill="#64748b" stroke="#475569" stroke-width="2"/>
-                <line x1="-20" y1="31" x2="20" y2="31" stroke="#475569" stroke-width="2"/>
-                <line x1="-20" y1="39" x2="20" y2="39" stroke="#475569" stroke-width="2"/>
                 <g class="${cls}">
-                    <circle cx="0" cy="-8" r="36" fill="${fill}" stroke="${lit ? '#fde68a' : '#94a3b8'}" stroke-width="2.5"/>
-                    <path d="M -10 24 L -10 6 Q -5 -14 0 6 Q 5 -14 10 6 L 10 24" fill="none" stroke="${lit ? '#fffbeb' : '#94a3b8'}" stroke-width="3" stroke-linecap="round"/>
+                    <path d="M -14 16 L -14 8 A 30 30 0 1 1 14 8 L 14 16 Z" fill="${fill}" stroke="${lit ? '#fde68a' : '#7dd3fc'}" stroke-width="2.5" stroke-linejoin="round"/>
+                    <path d="M -22 -26 Q -20 -40 -8 -46" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity="0.55"/>
+                    <path d="M -5 16 L -6 -6 Q -3 -20 0 -6 Q 3 -20 6 -6 L 5 16" fill="none" stroke="${lit ? '#fffbeb' : '#94a3b8'}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </g>
-                <circle cx="-35" cy="40" r="7" fill="#f59e0b" stroke="#0f172a" stroke-width="2"/>
-                <circle cx="35" cy="40" r="7" fill="#f59e0b" stroke="#0f172a" stroke-width="2"/>
+                <rect x="-18" y="16" width="36" height="38" rx="3" fill="url(#shell-${sfx})" stroke="#475569" stroke-width="2"/>
+                ${threads}
+                <rect x="-12" y="54" width="24" height="6" rx="1" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+                <path d="M -9 60 L -9 63 Q 0 72 9 63 L 9 60 Z" fill="#cbd5e1" stroke="#475569" stroke-width="1.5"/>
+                <circle cx="-18" cy="30" r="5" fill="#f59e0b" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="18" cy="30" r="5" fill="#f59e0b" stroke="#0f172a" stroke-width="2"/>
+                <circle cx="0" cy="66" r="5" fill="#f59e0b" stroke="#0f172a" stroke-width="2"/>
             </g>`;
             let label = '';
             if (powered) {
                 const txt = level < 0.05 ? '不亮' : `亮度 ${Math.round(level * 20) * 5}%`;
-                label = `<text x="${c.x}" y="${c.y + 78}" text-anchor="middle" font-size="18" font-weight="700" fill="${lit ? '#fcd34d' : '#64748b'}">${txt}</text>`;
+                label = `<text x="${c.x + 56}" y="${c.y - 12}" text-anchor="start" font-size="18" font-weight="700" fill="${lit ? '#fcd34d' : '#64748b'}">${txt}</text>`;
             }
             return body + label;
         }
@@ -894,6 +901,10 @@
             <defs>
                 <linearGradient id="batg-${sfx}" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0" stop-color="#475569"/><stop offset="1" stop-color="#1e293b"/>
+                </linearGradient>
+                <linearGradient id="shell-${sfx}" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0" stop-color="#64748b"/><stop offset="0.35" stop-color="#e2e8f0"/>
+                    <stop offset="0.7" stop-color="#94a3b8"/><stop offset="1" stop-color="#475569"/>
                 </linearGradient>
                 <radialGradient id="halo-${sfx}">
                     <stop offset="0" stop-color="#fde047" stop-opacity="0.9"/>
@@ -1316,71 +1327,71 @@
 
         const TROUBLES = {
             1: {
-                desc: '🔍 情境 1：電池和燈泡都是好的，按下 RUN 燈泡卻不亮。請找出原因並修好它！',
-                hint: '看看有沒有橘色的游離端點——把它拖到燈泡左側的接點上（放開時會自動吸附）。',
-                fix: '原因：電線沒有接到燈泡，迴路是斷開的（斷路）。接好後電流才有完整的路可以走。',
+                desc: '🔍 情境 1：電池和燈泡都是好的，按下 RUN 燈泡卻不亮。燈泡有兩個接點：側邊的「螺紋金屬體」和最底部的「小圓點」，兩個都要接上才會通路。',
+                hint: '有一條電線的橘色端點游離在外，把它拖到燈泡最下方的金屬小圓點（底部接點），放開時會自動吸附。',
+                fix: '原因：電線沒有碰到燈泡的底部接點，迴路是斷開的（斷路）。螺紋金屬體與底部接點都接上，電流才有完整的路可以走。',
                 build() {
-                    const comps = [{ id: 'b1', type: 'battery', x: 220, y: 250, rotation: 0 }, { id: 'l1', type: 'bulb', x: 500, y: 250, rotation: 0 }];
+                    const comps = [{ id: 'b1', type: 'battery', x: 400, y: 340, rotation: 0 }, { id: 'l1', type: 'bulb', x: 400, y: 130, rotation: 0 }];
                     return { comps, wires: [
-                        mkWire(comps, 'w1', 'b1', 'pos', 'l1', 't2', [410, 150]),
-                        mkWire(comps, 'w2', 'b1', 'neg', [400, 370], null, [280, 400])
+                        mkWire(comps, 'w1', 'b1', 'pos', 'l1', 'shellR', [500, 250]),
+                        mkWire(comps, 'w2', 'b1', 'neg', [320, 250], null, [310, 320])
                     ] };
                 }
             },
             2: {
                 desc: '🔍 情境 2：電線都接好了，但燈泡還是不亮。請檢查電路中的元件！',
-                hint: '電路中間有一個開關，目前是 OFF（斷開）。點一下開關讓它變成 ON。',
+                hint: '電路上方有一個開關，目前是 OFF（斷開）。點一下開關讓它變成 ON。',
                 fix: '原因：開關是打開的，等於把迴路切斷。關上（ON）開關後電流才能流通。',
                 build() {
                     const comps = [
-                        { id: 'b1', type: 'battery', x: 200, y: 300, rotation: 0 },
-                        { id: 's1', type: 'switch', x: 400, y: 150, rotation: 0, closed: false },
-                        { id: 'l1', type: 'bulb', x: 600, y: 300, rotation: 0 }
+                        { id: 'b1', type: 'battery', x: 400, y: 370, rotation: 0 },
+                        { id: 's1', type: 'switch', x: 240, y: 150, rotation: 0, closed: false },
+                        { id: 'l1', type: 'bulb', x: 560, y: 130, rotation: 0 }
                     ];
                     return { comps, wires: [
-                        mkWire(comps, 'w1', 'b1', 'pos', 's1', 't1', [260, 150]),
-                        mkWire(comps, 'w2', 's1', 't2', 'l1', 't2', [640, 170]),
-                        mkWire(comps, 'w3', 'l1', 't1', 'b1', 'neg', [350, 440])
+                        mkWire(comps, 'w1', 'b1', 'neg', 's1', 't1', [190, 300]),
+                        mkWire(comps, 'w2', 's1', 't2', 'l1', 'shellL', [400, 60]),
+                        mkWire(comps, 'w3', 'l1', 'tip', 'b1', 'pos', [610, 300])
                     ] };
                 }
             },
             3: {
                 desc: '🔍 情境 3：只有一條電線連著電池和燈泡，燈泡不亮。你需要補上什麼？',
-                hint: '按上方「⚡ + 電線」新增一條線，再把它的兩端分別拖到「電池負極（藍色）」與「燈泡左側接點」。',
+                hint: '按上方「⚡ + 電線」新增一條線，再把它的兩端分別拖到「電池負極（藍色）」與「燈泡最下方的金屬小圓點（底部接點）」。',
                 fix: '原因：只有一條電線，電流出去之後回不到電池，沒有形成完整迴路。補上第二條線後就通了。',
                 build() {
-                    const comps = [{ id: 'b1', type: 'battery', x: 220, y: 300, rotation: 0 }, { id: 'l1', type: 'bulb', x: 500, y: 300, rotation: 0 }];
-                    return { comps, wires: [ mkWire(comps, 'w1', 'b1', 'pos', 'l1', 't2', [410, 200]) ] };
+                    const comps = [{ id: 'b1', type: 'battery', x: 400, y: 340, rotation: 0 }, { id: 'l1', type: 'bulb', x: 400, y: 130, rotation: 0 }];
+                    return { comps, wires: [ mkWire(comps, 'w1', 'b1', 'pos', 'l1', 'shellR', [500, 250]) ] };
                 }
             },
             4: {
                 desc: '🔍 情境 4：燈泡不亮，而且一通電就出現危險警告！找出多餘的東西。',
-                hint: '有一條電線直接接在燈泡兩端，電流都走這條「捷徑」。點選它，再按紅色 ✕ 刪除。（可先按斷電再修理）',
-                fix: '原因：燈泡兩端被電線短接，電流完全不經過燈泡（短路）。移除多餘的電線後燈泡就會亮。',
+                hint: '有一條電線把燈泡的螺紋金屬體和底部接點直接連起來，電流都走這條「捷徑」。點選它，再按紅色 ✕ 刪除。（可先按斷電再修理）',
+                fix: '原因：燈泡的兩個接點被電線短接，電流完全不經過燈絲（短路）。移除多餘的電線後燈泡就會亮。',
                 build() {
-                    const comps = [{ id: 'b1', type: 'battery', x: 220, y: 250, rotation: 0 }, { id: 'l1', type: 'bulb', x: 500, y: 250, rotation: 0 }];
+                    const comps = [{ id: 'b1', type: 'battery', x: 400, y: 340, rotation: 0 }, { id: 'l1', type: 'bulb', x: 400, y: 130, rotation: 0 }];
                     return { comps, wires: [
-                        mkWire(comps, 'w1', 'b1', 'pos', 'l1', 't2', [410, 150]),
-                        mkWire(comps, 'w2', 'b1', 'neg', 'l1', 't1', [310, 350]),
-                        mkWire(comps, 'w3', 'l1', 't1', 'l1', 't2', [500, 410])
+                        mkWire(comps, 'w1', 'b1', 'pos', 'l1', 'shellR', [500, 250]),
+                        mkWire(comps, 'w2', 'b1', 'neg', 'l1', 'tip', [335, 270]),
+                        mkWire(comps, 'w3', 'l1', 'shellL', 'l1', 'tip', [310, 215])
                     ] };
                 }
             },
             5: {
                 desc: '🔍 情境 5：兩顆燈泡並聯，其中一顆亮、另一顆不亮。請讓兩顆都亮！',
-                hint: '下方那顆燈泡的電線有一端游離在外，把橘色端點拖到電池負極（左側藍色接點）。',
+                hint: '下方那顆燈泡有一條電線游離在外，把橘色端點拖到電池負極（左側藍色接點）。',
                 fix: '原因：並聯時每個分路都要各自形成迴路。不亮的那一路少接了一端，該分路是斷路。',
                 build() {
                     const comps = [
-                        { id: 'b1', type: 'battery', x: 180, y: 250, rotation: 0 },
-                        { id: 'l1', type: 'bulb', x: 480, y: 180, rotation: 0 },
-                        { id: 'l2', type: 'bulb', x: 480, y: 320, rotation: 0 }
+                        { id: 'b1', type: 'battery', x: 400, y: 250, rotation: 0 },
+                        { id: 'l1', type: 'bulb', x: 400, y: 100, rotation: 0 },
+                        { id: 'l2', type: 'bulb', x: 400, y: 400, rotation: 180 }
                     ];
                     return { comps, wires: [
-                        mkWire(comps, 'w1', 'b1', 'pos', 'l1', 't2', [380, 140]),
-                        mkWire(comps, 'w2', 'b1', 'pos', 'l2', 't2', [380, 260]),
-                        mkWire(comps, 'w3', 'l1', 't1', 'b1', 'neg', [280, 200]),
-                        mkWire(comps, 'w4', 'l2', 't1', [200, 440], null, [320, 430])
+                        mkWire(comps, 'w1', 'b1', 'pos', 'l1', 'shellR', [500, 185]),
+                        mkWire(comps, 'w2', 'b1', 'pos', 'l2', 'shellL', [500, 315]),
+                        mkWire(comps, 'w3', 'b1', 'neg', 'l1', 'tip', [330, 200]),
+                        mkWire(comps, 'w4', 'l2', 'tip', [250, 400], null, [320, 380])
                     ] };
                 }
             },
@@ -1390,14 +1401,14 @@
                 fix: '原因：串聯的兩顆電池之間沒有接上，整條迴路被切斷。接好後電壓疊加成 3.0V，燈泡會比平常更亮（200%）。',
                 build() {
                     const comps = [
-                        { id: 'b1', type: 'battery', x: 200, y: 250, rotation: 0 },
-                        { id: 'b2', type: 'battery', x: 340, y: 250, rotation: 0 },
-                        { id: 'l1', type: 'bulb', x: 580, y: 250, rotation: 0 }
+                        { id: 'b1', type: 'battery', x: 230, y: 370, rotation: 0 },
+                        { id: 'b2', type: 'battery', x: 420, y: 370, rotation: 0 },
+                        { id: 'l1', type: 'bulb', x: 420, y: 130, rotation: 0 }
                     ];
                     return { comps, wires: [
-                        mkWire(comps, 'w1', 'b1', 'pos', [270, 350], null, [270, 330]),
-                        mkWire(comps, 'w2', 'b2', 'pos', 'l1', 't2', [500, 160]),
-                        mkWire(comps, 'w3', 'b1', 'neg', 'l1', 't1', [350, 400])
+                        mkWire(comps, 'w1', 'b1', 'pos', [325, 440], null, [310, 420]),
+                        mkWire(comps, 'w2', 'b2', 'pos', 'l1', 'shellR', [570, 260]),
+                        mkWire(comps, 'w3', 'b1', 'neg', 'l1', 'tip', [160, 250])
                     ] };
                 }
             }
