@@ -1,0 +1,1985 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D 機械傳動與動力轉換模擬：馬達 → 齒輪 → 輪子</title>
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 載入 Three.js r128 與 OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- 載入 Google Fonts (Noto Sans TC & JetBrains Mono) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans TC"', '"Inter"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #050a14;
+      color: #e2e8f0;
+      font-family: "Noto Sans TC", "Inter", sans-serif;
+      user-select: none;
+    }
+
+    #webglContainer {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+    }
+
+    /* 毛玻璃工程面板樣式 */
+    .hud-glass {
+      background: rgba(8, 15, 29, 0.78);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
+    }
+
+    /* 自訂工業滑桿 */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(30, 49, 82, 0.95);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      margin-top: -6px;
+      background-color: #06b6d4;
+      border: 2px solid #ecfeff;
+      height: 17px;
+      width: 17px;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.75);
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.16);
+      background-color: #22d3ee;
+    }
+
+    input[type="range"].gold-slider::-webkit-slider-thumb {
+      background-color: #f59e0b;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.75);
+    }
+
+    input[type="range"].cyan-slider::-webkit-slider-thumb {
+      background-color: #38bdf8;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.75);
+    }
+
+    input[type="range"].orange-slider::-webkit-slider-thumb {
+      background-color: #f97316;
+      box-shadow: 0 0 10px rgba(249, 115, 22, 0.75);
+    }
+
+    /* 細緻捲軸 */
+    .hud-scroll::-webkit-scrollbar {
+      width: 5px;
+    }
+    .hud-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .hud-scroll::-webkit-scrollbar-thumb {
+      background: rgba(56, 189, 248, 0.28);
+      border-radius: 999px;
+    }
+
+    /* 3D 浮動標註標籤 */
+    .label-3d {
+      position: absolute;
+      transform: translate(-50%, -100%);
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 10;
+    }
+
+    /* 失速警告脈衝動畫 */
+    @keyframes stallPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+      50% { box-shadow: 0 0 22px 5px rgba(239, 68, 68, 0.4); }
+    }
+    .stall-banner {
+      animation: stallPulse 1.3s infinite;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 全螢幕 3D WebGL 畫布容器 -->
+  <div id="webglContainer"></div>
+
+  <!-- 3D 空間投影浮動 HTML 標籤層 -->
+  <div id="labelsOverlay" class="fixed inset-0 pointer-events-none z-10 overflow-hidden">
+    <!-- 標籤 1：馬達 -->
+    <div id="labelMotor" class="label-3d flex flex-col items-center">
+      <div class="px-2.5 py-1 rounded-lg bg-slate-950/85 border border-cyan-400/50 text-cyan-200 text-xs font-bold shadow-lg backdrop-blur-md whitespace-nowrap flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+        <span>1. 馬達 (高轉速/低扭力)</span>
+      </div>
+      <div class="w-px h-5 bg-gradient-to-b from-cyan-400/80 to-transparent"></div>
+    </div>
+
+    <!-- 標籤 2：齒輪組 -->
+    <div id="labelGears" class="label-3d flex flex-col items-center">
+      <div class="px-2.5 py-1 rounded-lg bg-slate-950/85 border border-amber-400/50 text-amber-200 text-xs font-bold shadow-lg backdrop-blur-md whitespace-nowrap flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+        <span>2. 齒輪組 (變速增扭)</span>
+      </div>
+      <div class="w-px h-5 bg-gradient-to-b from-amber-400/80 to-transparent"></div>
+    </div>
+
+    <!-- 標籤 3：驅動輪 -->
+    <div id="labelWheel" class="label-3d flex flex-col items-center">
+      <div class="px-2.5 py-1 rounded-lg bg-slate-950/85 border border-emerald-400/50 text-emerald-200 text-xs font-bold shadow-lg backdrop-blur-md whitespace-nowrap flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span>3. 驅動輪 (牽引推進)</span>
+      </div>
+      <div class="w-px h-5 bg-gradient-to-b from-emerald-400/80 to-transparent"></div>
+    </div>
+  </div>
+
+  <!-- 頂部懸浮標題與視角 / 視覺開關列 -->
+  <header class="fixed top-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+    <!-- 左上標題卡片 -->
+    <div class="hud-glass rounded-2xl px-3.5 py-2 flex items-center gap-3 pointer-events-auto">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/25 border border-cyan-300/30 flex-none">
+        <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-sm sm:text-base font-bold text-white tracking-wide leading-tight">
+          3D 機械傳動與動力轉換模擬：馬達 → 齒輪 → 輪子
+        </h1>
+        <p class="text-[11px] text-slate-400 hidden sm:block">
+          滑鼠左鍵旋轉視角・滾輪縮放・右鍵平移 ｜ 即時齒輪嚙合與動力學模擬
+        </p>
+      </div>
+    </div>
+
+    <!-- 右上：視角切換與顯示開關 -->
+    <div class="flex flex-wrap items-center gap-1.5 pointer-events-auto">
+      <!-- 視角切換按鈕群 -->
+      <div class="hud-glass rounded-xl p-1 flex items-center gap-1">
+        <span class="text-[11px] text-slate-400 px-2 hidden xl:inline font-medium">視角切換:</span>
+        <button data-cam="overview" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50 transition">
+          總覽視角
+        </button>
+        <button data-cam="motor" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-800/80 border border-transparent transition">
+          馬達剖面
+        </button>
+        <button data-cam="gears" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-800/80 border border-transparent transition">
+          齒輪嚙合
+        </button>
+        <button data-cam="wheel" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-800/80 border border-transparent transition">
+          輪胎與路面
+        </button>
+      </div>
+
+      <!-- 輔助視覺開關 -->
+      <div class="hud-glass rounded-xl p-1 flex items-center gap-1">
+        <button id="btnCutaway" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 transition" title="切換馬達金屬外殼半透明剖面 / 實體模式">
+          馬達外殼透視
+        </button>
+        <button id="btnLabels" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 transition" title="顯示或隱藏 3D 空間標註標籤">
+          3D 標籤顯示
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 失速 / 扭力不足紅色警告橫幅 -->
+  <div id="stallBanner" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-2xl px-4 py-3 rounded-2xl bg-red-950/92 border-2 border-red-500 text-red-100 backdrop-blur-md stall-banner flex items-center gap-3 shadow-2xl">
+    <div class="w-9 h-9 rounded-xl bg-red-500/25 border border-red-400 flex items-center justify-center text-red-300 font-black text-xl flex-none">
+      !
+    </div>
+    <div class="text-xs sm:text-sm font-bold text-red-200 leading-snug">
+      ⚠️ 扭力不足：負載過重導致馬達失速！請增大從動齒輪 Z₂ 或減小主動齒輪 Z₁ 以提高扭力
+    </div>
+  </div>
+
+  <!-- 左側可收合控制與參數面板 -->
+  <aside id="leftPanel" class="fixed top-20 left-3 bottom-3 w-[320px] sm:w-[340px] z-20 flex flex-col gap-2.5 pointer-events-none transition-transform duration-300">
+    <!-- 面板收合控制按鈕 -->
+    <div class="flex items-center justify-between hud-glass rounded-xl px-3 py-2 pointer-events-auto">
+      <span class="text-xs font-bold tracking-wider text-cyan-400 flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+        傳動參數與工況控制
+      </span>
+      <button id="toggleLeftPanel" class="text-xs text-slate-300 hover:text-white px-2 py-0.5 rounded bg-slate-800/80 border border-slate-600/50 transition">
+        收合 ▲
+      </button>
+    </div>
+
+    <!-- 左側可捲動內容 -->
+    <div id="leftPanelBody" class="flex-1 min-h-0 overflow-y-auto hud-scroll flex flex-col gap-2.5 pr-0.5 pointer-events-auto">
+
+      <!-- 1. 播放控制與慢動作 -->
+      <div class="hud-glass rounded-2xl p-3">
+        <div class="grid grid-cols-2 gap-2">
+          <button id="btnPlayPause" class="py-2 px-3 rounded-xl font-bold text-xs bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md border border-emerald-400/30 transition flex items-center justify-center gap-1.5">
+            <span id="playIcon">⏸</span>
+            <span id="playText">暫停運轉</span>
+          </button>
+
+          <button id="btnSlowMo" class="py-2 px-3 rounded-xl font-bold text-xs bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-600/60 transition flex items-center justify-center gap-1.5">
+            <span id="slowDot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+            <span>慢動作觀察 (0.25x)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. 快速工況實驗預設 -->
+      <div class="hud-glass rounded-2xl p-3">
+        <div class="text-xs font-bold text-amber-400 mb-2 flex items-center gap-1.5">
+          <span class="w-1.5 h-3.5 bg-amber-400 rounded-full"></span>
+          快速工況實驗預設
+        </div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button data-scenario="climb" class="scenario-btn py-2 px-1.5 rounded-xl text-center bg-amber-500/20 border border-amber-400/70 text-amber-200 transition">
+            <div class="text-xs font-bold">爬坡重載模式</div>
+            <div class="text-[10px] font-mono text-amber-300/90 mt-0.5">1:3.5 減速增扭</div>
+          </button>
+          <button data-scenario="balanced" class="scenario-btn py-2 px-1.5 rounded-xl text-center bg-slate-800/80 hover:bg-slate-700/80 border border-slate-600/60 text-slate-200 transition">
+            <div class="text-xs font-bold">標準均衡模式</div>
+            <div class="text-[10px] font-mono text-cyan-300/90 mt-0.5">1:2.0 均衡傳動</div>
+          </button>
+          <button data-scenario="speed" class="scenario-btn py-2 px-1.5 rounded-xl text-center bg-slate-800/80 hover:bg-slate-700/80 border border-slate-600/60 text-slate-200 transition">
+            <div class="text-xs font-bold">平路高速模式</div>
+            <div class="text-[10px] font-mono text-sky-300/90 mt-0.5">1.5:1 加速減扭</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. 即時物理參數滑桿 -->
+      <div class="hud-glass rounded-2xl p-3 space-y-3">
+        <div class="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+          <span class="w-1.5 h-3.5 bg-cyan-400 rounded-full"></span>
+          即時機械與負載參數
+        </div>
+
+        <!-- 馬達輸入電力 / 電壓 -->
+        <div>
+          <div class="flex justify-between items-center text-xs mb-1">
+            <label for="sliderPower" class="text-slate-300 font-medium">馬達輸入電力 / 電壓</label>
+            <span class="font-mono font-bold text-cyan-300 bg-cyan-950/90 px-2 py-0.5 rounded border border-cyan-500/30">
+              <span id="valPower">80</span>%
+            </span>
+          </div>
+          <input id="sliderPower" type="range" min="10" max="100" step="1" value="80" class="w-full" />
+        </div>
+
+        <!-- 主動小齒輪齒數 Z1 -->
+        <div class="pt-1.5 border-t border-slate-800/80">
+          <div class="flex justify-between items-center text-xs mb-1">
+            <label for="sliderZ1" class="text-slate-300 font-medium">主動小齒輪齒數 Z₁ (金色)</label>
+            <span class="font-mono font-bold text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-500/30">
+              <span id="valZ1">12</span> 齒
+            </span>
+          </div>
+          <input id="sliderZ1" type="range" min="10" max="32" step="1" value="12" class="w-full gold-slider" />
+        </div>
+
+        <!-- 從動大齒輪齒數 Z2 -->
+        <div>
+          <div class="flex justify-between items-center text-xs mb-1">
+            <label for="sliderZ2" class="text-slate-300 font-medium">從動大齒輪齒數 Z₂ (青鋼色)</label>
+            <span class="font-mono font-bold text-sky-300 bg-sky-950/80 px-2 py-0.5 rounded border border-sky-500/30">
+              <span id="valZ2">42</span> 齒
+            </span>
+          </div>
+          <input id="sliderZ2" type="range" min="14" max="56" step="1" value="42" class="w-full cyan-slider" />
+        </div>
+
+        <!-- 外部負載 / 爬坡阻力 -->
+        <div class="pt-1.5 border-t border-slate-800/80">
+          <div class="flex justify-between items-center text-xs mb-1">
+            <label for="sliderLoad" class="text-slate-300 font-medium">外部負載 / 爬坡阻力</label>
+            <span class="font-mono font-bold text-orange-300 bg-orange-950/80 px-2 py-0.5 rounded border border-orange-500/30">
+              <span id="valLoad">65</span>% (<span id="valSlopeDeg">14.3</span>°)
+            </span>
+          </div>
+          <input id="sliderLoad" type="range" min="0" max="100" step="1" value="65" class="w-full orange-slider" />
+        </div>
+      </div>
+
+      <!-- 4. 可折疊運作原理解析卡片 -->
+      <div class="hud-glass rounded-2xl p-3">
+        <button id="toggleTheoryBtn" class="w-full flex items-center justify-between text-xs font-bold text-emerald-400">
+          <span class="flex items-center gap-1.5">
+            <span>📘 運作原理解析 (三階段能量轉換)</span>
+          </span>
+          <span id="theoryArrow" class="text-slate-400">▼</span>
+        </button>
+        <div id="theoryBody" class="mt-2 pt-2 border-t border-slate-800 space-y-2 text-[11.5px] leading-relaxed text-slate-300">
+          <div>
+            <span class="text-cyan-300 font-bold">1. 馬達產生動力：</span>
+            直流電使定子磁極（N/S）與轉子線圈產生電磁交互作用，將電能轉換為<span class="text-white font-medium">高轉速、低扭力</span>的旋轉機械能。
+          </div>
+          <div>
+            <span class="text-amber-300 font-bold">2. 齒輪變速增扭：</span>
+            依能量守恆 <span class="font-mono text-amber-200">P = τ · ω</span>，當小齒輪（Z₁）帶動大齒輪（Z₂）時，轉速按齒輪比降低，但輸出扭力成倍放大。
+          </div>
+          <div>
+            <span class="text-emerald-300 font-bold">3. 輪子牽引推進：</span>
+            同軸驅動輪將放大後的扭力轉化為輪胎與地面之間的切線牽引力（F = τ / r），克服坡度與載重阻力推動車輛前進。
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- 右側可收合即時物理遙測儀表板 -->
+  <aside id="rightPanel" class="fixed top-20 right-3 w-[310px] sm:w-[330px] max-h-[calc(100vh-92px)] z-20 flex flex-col gap-2.5 pointer-events-none">
+    <!-- 右側收合標頭 -->
+    <div class="flex items-center justify-between hud-glass rounded-xl px-3 py-2 pointer-events-auto">
+      <span class="text-xs font-bold tracking-wider text-emerald-400 flex items-center gap-2">
+        <span id="telemetryLiveDot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        即時物理遙測儀表板
+      </span>
+      <button id="toggleRightPanel" class="text-xs text-slate-300 hover:text-white px-2 py-0.5 rounded bg-slate-800/80 border border-slate-600/50 transition">
+        收合 ▲
+      </button>
+    </div>
+
+    <!-- 右側內容 -->
+    <div id="rightPanelBody" class="overflow-y-auto hud-scroll flex flex-col gap-2.5 pr-0.5 pointer-events-auto">
+
+      <!-- 齒輪比與傳動模式徽章 -->
+      <div class="hud-glass rounded-2xl p-3">
+        <div class="flex items-center justify-between mb-1.5">
+          <span class="text-[11px] text-slate-400">齒輪齒數比 (Z₁ : Z₂)</span>
+          <span id="modeBadge" class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/50">
+            減速增扭
+          </span>
+        </div>
+        <div class="flex items-baseline justify-between">
+          <div class="font-mono text-lg font-bold text-white">
+            <span id="teleTeethRatio">12 : 42</span>
+          </div>
+          <div class="text-xs text-slate-300 font-mono">
+            機械利益 i = <span id="teleMechAdv" class="text-amber-300 font-bold text-sm">3.50</span>×
+          </div>
+        </div>
+        <div class="text-[10px] text-slate-400 mt-1 flex justify-between font-mono">
+          <span>傳動效率 η = 90%</span>
+          <span>功率守恆 P = τ · ω</span>
+        </div>
+      </div>
+
+      <!-- 馬達端 vs 輪子端：轉速 (RPM) 與 扭力 (N·m) 動態對比長條圖 -->
+      <div class="hud-glass rounded-2xl p-3 space-y-3">
+        <div class="text-xs font-bold text-slate-200 flex items-center justify-between">
+          <span>輸入端 vs 輸出端能量轉換對比</span>
+          <span class="text-[10px] font-mono text-cyan-400">P = τ·ω</span>
+        </div>
+
+        <!-- 轉速對比 (RPM) -->
+        <div class="bg-slate-950/75 rounded-xl p-2.5 border border-slate-800/90 space-y-2">
+          <div class="text-[11px] font-bold text-cyan-300">轉速對比 (RPM)</div>
+
+          <!-- 馬達轉速 -->
+          <div>
+            <div class="flex justify-between text-[11px] font-mono mb-1">
+              <span class="text-slate-400">馬達軸心 (輸入)</span>
+              <span class="text-cyan-300 font-bold"><span id="teleMotorRpm">2400</span> RPM</span>
+            </div>
+            <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div id="barMotorRpm" class="h-full bg-gradient-to-r from-cyan-500 to-sky-400 rounded-full transition-all duration-150" style="width: 60%"></div>
+            </div>
+          </div>
+
+          <!-- 輪子轉速 -->
+          <div>
+            <div class="flex justify-between text-[11px] font-mono mb-1">
+              <span class="text-slate-400">驅動輪軸 (輸出)</span>
+              <span id="teleWheelRpmText" class="text-emerald-300 font-bold"><span id="teleWheelRpm">686</span> RPM</span>
+            </div>
+            <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div id="barWheelRpm" class="h-full bg-gradient-to-r from-emerald-500 to-teal-300 rounded-full transition-all duration-150" style="width: 18%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 扭力對比 (N·m) -->
+        <div class="bg-slate-950/75 rounded-xl p-2.5 border border-slate-800/90 space-y-2">
+          <div class="text-[11px] font-bold text-amber-300">扭力對比 (N·m)</div>
+
+          <!-- 馬達扭力 -->
+          <div>
+            <div class="flex justify-between text-[11px] font-mono mb-1">
+              <span class="text-slate-400">馬達輸出扭力</span>
+              <span class="text-sky-300 font-bold"><span id="teleMotorTorque">0.64</span> N·m</span>
+            </div>
+            <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div id="barMotorTorque" class="h-full bg-gradient-to-r from-sky-500 to-blue-400 rounded-full transition-all duration-150" style="width: 22%"></div>
+            </div>
+          </div>
+
+          <!-- 輪子扭力 -->
+          <div>
+            <div class="flex justify-between text-[11px] font-mono mb-1">
+              <span class="text-slate-400">輪子可用扭力</span>
+              <span id="teleWheelTorqueText" class="text-amber-300 font-bold"><span id="teleWheelTorque">2.02</span> N·m</span>
+            </div>
+            <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div id="barWheelTorque" class="h-full bg-gradient-to-r from-amber-500 to-yellow-300 rounded-full transition-all duration-150" style="width: 68%"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 輪胎推進力、車速與負載安全餘裕 -->
+      <div class="hud-glass rounded-2xl p-3 space-y-2.5">
+        <div class="grid grid-cols-2 gap-2">
+          <div class="bg-slate-950/75 rounded-xl p-2.5 border border-slate-800">
+            <div class="text-[10px] text-slate-400">輪胎地面推進力</div>
+            <div class="font-mono text-base font-bold text-orange-300 mt-0.5">
+              <span id="teleTractionN">10.1</span> <span class="text-xs font-normal text-slate-400">N</span>
+            </div>
+          </div>
+          <div class="bg-slate-950/75 rounded-xl p-2.5 border border-slate-800">
+            <div class="text-[10px] text-slate-400">車輛前進線速度</div>
+            <div class="font-mono text-base font-bold text-emerald-300 mt-0.5">
+              <span id="teleVelocityMs">14.4</span> <span class="text-xs font-normal text-slate-400">m/s</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 負載扭力 vs 可用扭力對比 -->
+        <div class="bg-slate-950/75 rounded-xl p-2.5 border border-slate-800 text-[11px] font-mono">
+          <div class="flex justify-between text-slate-400 mb-1">
+            <span>負載需求扭力 vs 輪軸可用扭力</span>
+            <span id="teleLoadStatus" class="text-emerald-400 font-bold">動力充足</span>
+          </div>
+          <div class="flex justify-between text-xs">
+            <span class="text-orange-300">負載: <strong id="teleLoadTorque">1.21</strong> N·m</span>
+            <span class="text-amber-300">輸出: <strong id="teleAvailTorque">2.02</strong> N·m</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+  <script>
+    /**
+     * ============================================================================
+     * 3D 機械傳動與動力轉換模擬：馬達 → 齒輪 → 輪子 (Three.js r128)
+     * ============================================================================
+     */
+
+    // --------------------------------------------------------------------------
+    // 1. 系統物理與模擬狀態 (State)
+    // --------------------------------------------------------------------------
+    const state = {
+      isPlaying: true,
+      slowMo: false,
+      motorCutaway: true,
+      showLabels: true,
+
+      // 可調參數 (預設為「爬坡重載模式」)
+      powerPercent: 80,      // 馬達輸入電力 / 電壓 (10% - 100%)
+      z1: 12,                // 主動小齒輪齒數 (10 - 32)
+      z2: 42,                // 從動大齒輪齒數 (14 - 56)
+      loadPercent: 65,       // 外部負載 / 爬坡阻力 (0% - 100%)
+
+      // 幾何常數
+      gearModule: 0.16,      // 齒輪模數 m = 0.16
+      motorX: -3.0,          // 馬達與主動齒輪 Z1 的 X 座標
+      shaftY: 5.5,           // 傳動軸中心高度 Y
+      wheelZ: 4.3,           // 驅動輪所在 Z 座標
+      wheelVisualRadius: 2.55, // 3D 輪胎外半徑
+      wheelPhysRadius: 0.20, // 物理計算用輪胎半徑 (0.20 m)
+      efficiency: 0.90,      // 機械傳動效率 90%
+
+      // 動態角度與動畫相位
+      angle1: 0,             // 主動齒輪與馬達轉子旋轉角度 (rad)
+      roadScroll: 0,         // 路面輸送帶紋理位移
+      fluxTime: 0,           // 磁場粒子流動時間
+      stallJitterTime: 0,    // 失速震動相位
+
+      // 相機平滑過渡目標
+      cameraLerpActive: false,
+      targetCamPos: new THREE.Vector3(-1.5, 9.2, 16.5),
+      targetControlsCenter: new THREE.Vector3(-0.3, 4.6, 0.8)
+    };
+
+    // --------------------------------------------------------------------------
+    // 2. 初始化 Three.js 場景、渲染器、燈光與 OrbitControls
+    // --------------------------------------------------------------------------
+    const container = document.getElementById('webglContainer');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x050a14);
+    scene.fog = new THREE.FogExp2(0x050a14, 0.017);
+
+    const camera = new THREE.PerspectiveCamera(
+      44,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      150
+    );
+    camera.position.copy(state.targetCamPos);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    container.appendChild(renderer.domElement);
+
+    // OrbitControls 設定（若外部 CDN 受限則自動啟用內建滑鼠/觸控軌道控制器備援）
+    let controls;
+    if (typeof THREE.OrbitControls === 'function') {
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.06;
+      controls.minDistance = 4.5;
+      controls.maxDistance = 38;
+      controls.maxPolarAngle = Math.PI * 0.49;
+      controls.target.copy(state.targetControlsCenter);
+      // 當使用者手動拖拽視角時，停止自動相機動畫插值
+      controls.addEventListener('start', () => {
+        state.cameraLerpActive = false;
+      });
+    } else {
+      // 輕量級備援 OrbitControls
+      controls = createFallbackOrbitControls(camera, renderer.domElement, state.targetControlsCenter);
+    }
+
+    function createFallbackOrbitControls(cam, domEl, targetVec) {
+      const target = targetVec.clone();
+      let isDragging = false;
+      let prevX = 0, prevY = 0;
+      const spherical = new THREE.Spherical().setFromVector3(cam.position.clone().sub(target));
+
+      domEl.addEventListener('pointerdown', (e) => {
+        isDragging = true;
+        prevX = e.clientX;
+        prevY = e.clientY;
+        state.cameraLerpActive = false;
+      });
+      window.addEventListener('pointermove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - prevX;
+        const dy = e.clientY - prevY;
+        prevX = e.clientX;
+        prevY = e.clientY;
+        spherical.theta -= dx * 0.006;
+        spherical.phi = Math.max(0.15, Math.min(Math.PI * 0.48, spherical.phi - dy * 0.006));
+      });
+      window.addEventListener('pointerup', () => { isDragging = false; });
+      domEl.addEventListener('wheel', (e) => {
+        spherical.radius = Math.max(5, Math.min(35, spherical.radius + e.deltaY * 0.01));
+      }, { passive: true });
+
+      return {
+        target,
+        update() {
+          if (!state.cameraLerpActive) {
+            const offset = new THREE.Vector3().setFromSpherical(spherical);
+            cam.position.copy(target).add(offset);
+          } else {
+            spherical.setFromVector3(cam.position.clone().sub(target));
+          }
+          cam.lookAt(target);
+        }
+      };
+    }
+
+    // --------------------------------------------------------------------------
+    // 3. 工業試驗台環境與三點照明系統
+    // --------------------------------------------------------------------------
+    function setupEnvironmentAndLights() {
+      // 半球環境光
+      const hemiLight = new THREE.HemisphereLight(0x7dd3fc, 0x0f172a, 0.72);
+      scene.add(hemiLight);
+
+      // 主方向光（投射清晰柔和陰影）
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1.35);
+      dirLight.position.set(10, 22, 14);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
+      dirLight.shadow.camera.near = 2;
+      dirLight.shadow.camera.far = 55;
+      const d = 15;
+      dirLight.shadow.camera.left = -d;
+      dirLight.shadow.camera.right = d;
+      dirLight.shadow.camera.top = d;
+      dirLight.shadow.camera.bottom = -d;
+      dirLight.shadow.bias = -0.0005;
+      scene.add(dirLight);
+
+      // 冷青色邊緣補光（凸顯金屬倒角與齒輪輪廓）
+      const rimLight = new THREE.DirectionalLight(0x38bdf8, 0.65);
+      rimLight.position.set(-14, 10, -12);
+      scene.add(rimLight);
+
+      // 暖金色點光源（照亮齒輪嚙合區）
+      const meshPointLight = new THREE.PointLight(0xfbbf24, 0.85, 16);
+      meshPointLight.position.set(-0.5, state.shaftY + 2.5, 2.0);
+      scene.add(meshPointLight);
+
+      // 工業深色試驗台底座
+      const bedGeo = new THREE.BoxGeometry(24, 0.6, 16);
+      const bedMat = new THREE.MeshStandardMaterial({
+        color: 0x0b1324,
+        metalness: 0.65,
+        roughness: 0.45
+      });
+      const bedMesh = new THREE.Mesh(bedGeo, bedMat);
+      bedMesh.position.set(0.5, -0.3, 0.8);
+      bedMesh.receiveShadow = true;
+      scene.add(bedMesh);
+
+      // 試驗台青色發光邊框條
+      const trimGeo = new THREE.BoxGeometry(24.1, 0.08, 16.1);
+      const trimMat = new THREE.MeshBasicMaterial({ color: 0x0284c7 });
+      const trimMesh = new THREE.Mesh(trimGeo, trimMat);
+      trimMesh.position.set(0.5, -0.02, 0.8);
+      scene.add(trimMesh);
+
+      // 工程藍圖網格線
+      const gridHelper = new THREE.GridHelper(24, 24, 0x0ea5e9, 0x162542);
+      gridHelper.position.set(0.5, 0.01, 0.8);
+      gridHelper.material.opacity = 0.45;
+      gridHelper.material.transparent = true;
+      scene.add(gridHelper);
+    }
+
+    // --------------------------------------------------------------------------
+    // 4. 程序化紋理產生器 (CanvasTexture，無任何外部圖片網址)
+    // --------------------------------------------------------------------------
+    function createGearStripeTexture(baseHex, stripeHex) {
+      const c = document.createElement('canvas');
+      c.width = 256;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+      ctx.fillStyle = baseHex;
+      ctx.fillRect(0, 0, 256, 256);
+
+      // 繪製放射狀高對比標記線，讓轉速差異在 3D 中極為清晰
+      ctx.fillStyle = stripeHex;
+      ctx.fillRect(120, 0, 16, 256);
+      ctx.fillRect(0, 120, 256, 16);
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      return tex;
+    }
+
+    function createRoadConveyorTexture() {
+      const c = document.createElement('canvas');
+      c.width = 512;
+      c.height = 256;
+      const ctx = c.getContext('2d');
+
+      // 瀝青深灰底色
+      ctx.fillStyle = '#111827';
+      ctx.fillRect(0, 0, 512, 256);
+
+      // 兩側安全黃線
+      ctx.fillStyle = '#eab308';
+      ctx.fillRect(0, 10, 512, 10);
+      ctx.fillRect(0, 236, 512, 10);
+
+      // 垂直於前進方向的白色距離刻度線（隨輸送帶滾動）
+      ctx.fillStyle = '#38bdf8';
+      for (let x = 0; x < 512; x += 64) {
+        ctx.fillRect(x, 30, 8, 196);
+        // 方向箭頭紋路
+        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+        ctx.fillRect(x + 28, 118, 22, 20);
+        ctx.fillStyle = '#38bdf8';
+      }
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.repeat.set(3, 1);
+      return tex;
+    }
+
+    // --------------------------------------------------------------------------
+    // 5. 階段一：直流馬達總成 (Cutaway Electric Motor)
+    // --------------------------------------------------------------------------
+    const motorComponents = {
+      group: new THREE.Group(),
+      housingMat: null,
+      rotorGroup: new THREE.Group(),
+      fluxParticles: [],
+      fluxRings: []
+    };
+
+    function buildMotorStage() {
+      const mx = state.motorX;
+      const my = state.shaftY;
+      const mz = -3.0; // 馬達本體中心 Z 座標
+
+      motorComponents.group.position.set(mx, my, mz);
+      scene.add(motorComponents.group);
+
+      const outerR = 1.95;
+      const length = 3.2;
+
+      // 1. 馬達底座支架（連接到 Y = 0 試驗台）
+      const standMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        metalness: 0.75,
+        roughness: 0.35
+      });
+      const legGeo = new THREE.BoxGeometry(2.6, my - 0.5, 2.4);
+      const legMesh = new THREE.Mesh(legGeo, standMat);
+      legMesh.position.set(0, -(my - 0.5) / 2 - 0.5, 0);
+      legMesh.castShadow = true;
+      legMesh.receiveShadow = true;
+      motorComponents.group.add(legMesh);
+
+      // 底座法蘭盤
+      const baseFoot = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.25, 3.0), standMat);
+      baseFoot.position.set(0, -my + 0.125, 0);
+      baseFoot.receiveShadow = true;
+      motorComponents.group.add(baseFoot);
+
+      // 2. 半透明金屬外殼與散熱鰭片（支援「馬達外殼透視」切換）
+      motorComponents.housingMat = new THREE.MeshPhysicalMaterial({
+        color: 0x64748b,
+        metalness: 0.7,
+        roughness: 0.25,
+        transparent: true,
+        opacity: 0.26,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+
+      const shellGeo = new THREE.CylinderGeometry(outerR, outerR, length, 40, 1, true);
+      shellGeo.rotateX(Math.PI / 2);
+      const shellMesh = new THREE.Mesh(shellGeo, motorComponents.housingMat);
+      motorComponents.group.add(shellMesh);
+
+      // 外殼圓周散熱鰭片環
+      const finCount = 8;
+      for (let i = 0; i < finCount; i++) {
+        const fz = -length * 0.42 + (i / (finCount - 1)) * (length * 0.84);
+        const finGeo = new THREE.TorusGeometry(outerR + 0.07, 0.045, 8, 40);
+        const finMesh = new THREE.Mesh(finGeo, motorComponents.housingMat);
+        finMesh.position.z = fz;
+        motorComponents.group.add(finMesh);
+      }
+
+      // 前後端蓋環 (實心金屬框，保留開放視窗觀察內部)
+      const capMat = new THREE.MeshStandardMaterial({
+        color: 0x334155,
+        metalness: 0.8,
+        roughness: 0.3
+      });
+      [-length / 2, length / 2].forEach((capZ) => {
+        const ringGeo = new THREE.TorusGeometry(outerR - 0.05, 0.12, 12, 36);
+        const ringMesh = new THREE.Mesh(ringGeo, capMat);
+        ringMesh.position.z = capZ;
+        motorComponents.group.add(ringMesh);
+      });
+
+      // 後端電源接線盒與紅(+)藍(-)電線
+      const termBox = new THREE.Mesh(
+        new THREE.BoxGeometry(0.9, 0.7, 0.5),
+        new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5 })
+      );
+      termBox.position.set(0, outerR + 0.25, -0.6);
+      motorComponents.group.add(termBox);
+
+      const posWire = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.06, 1.4, 8),
+        new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x7f1d1d })
+      );
+      posWire.rotation.z = Math.PI / 2;
+      posWire.position.set(-0.9, outerR + 0.35, -0.6);
+      motorComponents.group.add(posWire);
+
+      const negWire = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.06, 0.06, 1.4, 8),
+        new THREE.MeshStandardMaterial({ color: 0x3b82f6, emissive: 0x1e3a8a })
+      );
+      negWire.rotation.z = Math.PI / 2;
+      negWire.position.set(-0.9, outerR + 0.15, -0.6);
+      motorComponents.group.add(negWire);
+
+      // 3. 定子永久磁極：上方紅色 N 極、下方藍色 S 極
+      const magInnerR = 1.42;
+      const magOuterR = 1.84;
+      const magLength = length * 0.78;
+
+      function createCurvedMagnet(startAngle, endAngle, colorHex, emissiveHex) {
+        const shape = new THREE.Shape();
+        shape.absarc(0, 0, magOuterR, startAngle, endAngle, false);
+        shape.absarc(0, 0, magInnerR, endAngle, startAngle, true);
+        shape.closePath();
+
+        const extrudeGeo = new THREE.ExtrudeGeometry(shape, {
+          depth: magLength,
+          bevelEnabled: true,
+          bevelThickness: 0.03,
+          bevelSize: 0.03,
+          bevelSegments: 2,
+          curveSegments: 24
+        });
+        extrudeGeo.translate(0, 0, -magLength / 2);
+
+        const mat = new THREE.MeshStandardMaterial({
+          color: colorHex,
+          emissive: emissiveHex,
+          emissiveIntensity: 0.35,
+          metalness: 0.35,
+          roughness: 0.35
+        });
+        return new THREE.Mesh(extrudeGeo, mat);
+      }
+
+      // 上方 N 極 (紅色弧形磁鐵)
+      const northMagnet = createCurvedMagnet(Math.PI * 0.18, Math.PI * 0.82, 0xdc2626, 0x991b1b);
+      motorComponents.group.add(northMagnet);
+
+      // 下方 S 極 (藍色弧形磁鐵)
+      const southMagnet = createCurvedMagnet(-Math.PI * 0.82, -Math.PI * 0.18, 0x2563eb, 0x1d4ed8);
+      motorComponents.group.add(southMagnet);
+
+      // 4. 發光電磁場環與動態磁通粒子
+      const ringMat = new THREE.MeshBasicMaterial({
+        color: 0x38bdf8,
+        transparent: true,
+        opacity: 0.45
+      });
+      [-0.75, 0, 0.75].forEach((rz) => {
+        const fRing = new THREE.Mesh(new THREE.TorusGeometry(1.32, 0.022, 8, 36), ringMat.clone());
+        fRing.position.z = rz;
+        motorComponents.group.add(fRing);
+        motorComponents.fluxRings.push(fRing);
+      });
+
+      const particleGeo = new THREE.SphereGeometry(0.055, 8, 8);
+      const particleMat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc });
+      for (let i = 0; i < 18; i++) {
+        const p = new THREE.Mesh(particleGeo, particleMat);
+        p.userData = {
+          angle: (i / 18) * Math.PI * 2,
+          zOff: ((i % 3) - 1) * 0.75,
+          radius: 1.28
+        };
+        motorComponents.group.add(p);
+        motorComponents.fluxParticles.push(p);
+      }
+
+      // 5. 高速旋轉的轉子電樞與銅線圈繞組
+      motorComponents.group.add(motorComponents.rotorGroup);
+
+      const coreMat = new THREE.MeshStandardMaterial({
+        color: 0x475569,
+        metalness: 0.85,
+        roughness: 0.25
+      });
+      const copperMat = new THREE.MeshStandardMaterial({
+        color: 0xd97706,
+        emissive: 0x78350f,
+        emissiveIntensity: 0.28,
+        metalness: 0.82,
+        roughness: 0.22
+      });
+
+      // 三極電樞鐵芯與銅線圈
+      for (let p = 0; p < 3; p++) {
+        const armGroup = new THREE.Group();
+        armGroup.rotation.z = (p * Math.PI * 2) / 3;
+
+        // 矽鋼片極臂
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(0.28, 1.05, magLength * 0.85), coreMat);
+        arm.position.y = 0.55;
+        armGroup.add(arm);
+
+        // 銅線圈繞組
+        const coil = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.62, magLength * 0.78), copperMat);
+        coil.position.y = 0.62;
+        armGroup.add(coil);
+
+        // T型極靴
+        const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.16, magLength * 0.85), coreMat);
+        shoe.position.y = 1.08;
+        armGroup.add(shoe);
+
+        motorComponents.rotorGroup.add(armGroup);
+      }
+
+      // 銅換向器環
+      const commMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.36, 0.36, 0.45, 16),
+        copperMat
+      );
+      commMesh.rotation.x = Math.PI / 2;
+      commMesh.position.z = length * 0.38;
+      motorComponents.rotorGroup.add(commMesh);
+
+      // 6. 鋼製馬達傳動輸出軸（從馬達內部延伸至 Z = +0.55 主動齒輪軸承座）
+      const shaftMat = new THREE.MeshStandardMaterial({
+        color: 0xcbd5e1,
+        metalness: 0.92,
+        roughness: 0.18
+      });
+      const motorShaftLen = 5.3; // Z = -4.6 到 Z = +0.7
+      const motorShaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.22, 0.22, motorShaftLen, 20),
+        shaftMat
+      );
+      motorShaft.rotation.x = Math.PI / 2;
+      motorShaft.position.z = 1.05; // 世界座標 Z = -3.0 + 1.05 = -1.95 (涵蓋 -4.6 到 +0.7)
+      motorShaft.castShadow = true;
+      motorComponents.rotorGroup.add(motorShaft);
+
+      // 馬達輸出端軸承座（位於 Z = -0.8）
+      createPillowBlock(mx, my, -0.85);
+    }
+
+    /**
+     * 建立帶金屬軸承環的精密枕式軸承座
+     */
+    function createPillowBlock(x, y, z) {
+      const group = new THREE.Group();
+      group.position.set(x, y, z);
+
+      const housingMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        metalness: 0.7,
+        roughness: 0.35
+      });
+      const bearingMat = new THREE.MeshStandardMaterial({
+        color: 0x94a3b8,
+        metalness: 0.95,
+        roughness: 0.15
+      });
+
+      // 軸承外圈
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.38, 0.11, 12, 24), bearingMat);
+      group.add(ring);
+
+      // 支撐立柱直到試驗台地面 (Y = 0)
+      const pillarH = y - 0.25;
+      const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.55, pillarH, 0.42), housingMat);
+      pillar.position.y = -pillarH / 2 - 0.25;
+      pillar.castShadow = true;
+      pillar.receiveShadow = true;
+      group.add(pillar);
+
+      // 底部固定座
+      const foot = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.18, 0.85), housingMat);
+      foot.position.y = -y + 0.09;
+      foot.receiveShadow = true;
+      group.add(foot);
+
+      scene.add(group);
+      return group;
+    }
+
+    // --------------------------------------------------------------------------
+    // 6. 階段二：程序化 3D 變速齒輪組 (Procedural 3D Meshing Spur Gears)
+    // --------------------------------------------------------------------------
+    const gearSystem = {
+      gear1Group: new THREE.Group(),
+      gear2Group: new THREE.Group(),
+      contactGlow: null,
+      arrow1Group: null,
+      arrow2Group: null,
+      gear2BackBearing: null,
+      gear2FrontBearing: null,
+      axleMidBearing: null
+    };
+
+    /**
+     * 產生帶倒角、中心輪轂與減重孔的程序化 3D 齒輪 Mesh
+     */
+    function createProceduralGearMesh(teeth, moduleVal, primaryColor, stripeColor) {
+      const gearContainer = new THREE.Group();
+
+      const pitchR = (moduleVal * teeth) / 2;
+      const addendum = moduleVal * 0.85;
+      const dedendum = moduleVal * 1.05;
+      const outerR = pitchR + addendum;
+      const rootR = Math.max(0.38, pitchR - dedendum);
+      const step = (Math.PI * 2) / teeth;
+
+      // 1. 建立齒輪外輪廓 Shape
+      const shape = new THREE.Shape();
+      for (let i = 0; i < teeth; i++) {
+        const theta = i * step;
+        const a0 = theta - step * 0.36;
+        const a1 = theta - step * 0.24;
+        const a2 = theta - step * 0.13;
+        const a3 = theta + step * 0.13;
+        const a4 = theta + step * 0.24;
+        const a5 = theta + step * 0.36;
+        const aNext = theta + step - step * 0.36;
+
+        if (i === 0) {
+          shape.moveTo(Math.cos(a0) * rootR, Math.sin(a0) * rootR);
+        } else {
+          shape.lineTo(Math.cos(a0) * rootR, Math.sin(a0) * rootR);
+        }
+        shape.lineTo(Math.cos(a1) * pitchR, Math.sin(a1) * pitchR);
+        shape.lineTo(Math.cos(a2) * outerR, Math.sin(a2) * outerR);
+        shape.lineTo(Math.cos(a3) * outerR, Math.sin(a3) * outerR);
+        shape.lineTo(Math.cos(a4) * pitchR, Math.sin(a4) * pitchR);
+        shape.lineTo(Math.cos(a5) * rootR, Math.sin(a5) * rootR);
+        shape.absarc(0, 0, rootR, a5, aNext, false);
+      }
+      shape.closePath();
+
+      // 2. 中心軸孔
+      const borePath = new THREE.Path();
+      borePath.absarc(0, 0, 0.24, 0, Math.PI * 2, true);
+      shape.holes.push(borePath);
+
+      // 3. 若齒輪半徑足夠大，加入圓形工業減重孔
+      if (rootR > 1.35) {
+        const holeCount = teeth >= 32 ? 6 : 4;
+        const holeDist = rootR * 0.56;
+        const holeR = Math.min(0.45, rootR * 0.21);
+        for (let h = 0; h < holeCount; h++) {
+          const ha = (h * Math.PI * 2) / holeCount;
+          const hPath = new THREE.Path();
+          hPath.absarc(Math.cos(ha) * holeDist, Math.sin(ha) * holeDist, holeR, 0, Math.PI * 2, true);
+          shape.holes.push(hPath);
+        }
+      }
+
+      // 4. 3D 擠出與金屬倒角 (ExtrudeGeometry)
+      const thickness = 0.56;
+      const extrudeGeo = new THREE.ExtrudeGeometry(shape, {
+        depth: thickness,
+        bevelEnabled: true,
+        bevelThickness: 0.045,
+        bevelSize: 0.032,
+        bevelSegments: 2,
+        curveSegments: 6
+      });
+      extrudeGeo.translate(0, 0, -thickness / 2);
+
+      const gearMat = new THREE.MeshStandardMaterial({
+        color: primaryColor,
+        metalness: 0.78,
+        roughness: 0.24
+      });
+
+      const gearMesh = new THREE.Mesh(extrudeGeo, gearMat);
+      gearMesh.castShadow = true;
+      gearMesh.receiveShadow = true;
+      gearContainer.add(gearMesh);
+
+      // 5. 中心加厚輪轂 (Central Hub)
+      const hubR = Math.min(rootR * 0.45, 0.62);
+      const hubGeo = new THREE.CylinderGeometry(hubR, hubR, thickness + 0.26, 24);
+      hubGeo.rotateX(Math.PI / 2);
+      const hubMesh = new THREE.Mesh(hubGeo, gearMat);
+      hubMesh.castShadow = true;
+      gearContainer.add(hubMesh);
+
+      // 6. 高對比徑向旋轉指示條（讓轉速快慢對比一目了然）
+      const stripeLen = Math.max(0.35, rootR * 0.82);
+      const stripeGeo = new THREE.BoxGeometry(stripeLen, 0.11, thickness + 0.11);
+      const stripeMat = new THREE.MeshBasicMaterial({ color: stripeColor });
+      const stripeMesh = new THREE.Mesh(stripeGeo, stripeMat);
+      stripeMesh.position.x = stripeLen * 0.48;
+      gearContainer.add(stripeMesh);
+
+      // 7. 節圓工程參考虛線環
+      const pitchRingGeo = new THREE.RingGeometry(pitchR - 0.02, pitchR + 0.02, 48);
+      const pitchRingMat = new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.25,
+        side: THREE.DoubleSide
+      });
+      const pitchRingFront = new THREE.Mesh(pitchRingGeo, pitchRingMat);
+      pitchRingFront.position.z = thickness / 2 + 0.055;
+      gearContainer.add(pitchRingFront);
+
+      return gearContainer;
+    }
+
+    /**
+     * 建立齒輪上方的 3D 弧形旋轉方向箭頭
+     */
+    function createCurvedDirectionArrow(colorHex) {
+      const group = new THREE.Group();
+      const mat = new THREE.MeshBasicMaterial({ color: colorHex });
+
+      // 弧形管
+      const curve = new THREE.EllipseCurve(0, 0, 1.0, 1.0, Math.PI * 0.22, Math.PI * 0.78, false, 0);
+      const pts = curve.getPoints(20).map((p) => new THREE.Vector3(p.x, p.y, 0));
+      const tubeGeo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 20, 0.045, 8, false);
+      const tubeMesh = new THREE.Mesh(tubeGeo, mat);
+      group.add(tubeMesh);
+
+      // 箭頭圓錐端點（預設指向逆時針左端，可透過 scale.x 鏡像切換順/逆時針）
+      const coneGeo = new THREE.ConeGeometry(0.13, 0.3, 12);
+      const coneMesh = new THREE.Mesh(coneGeo, mat);
+      const endPt = pts[pts.length - 1];
+      coneMesh.position.copy(endPt);
+      coneMesh.rotation.z = Math.PI * 0.28;
+      group.add(coneMesh);
+
+      return group;
+    }
+
+    function initGearSystem() {
+      scene.add(gearSystem.gear1Group);
+      scene.add(gearSystem.gear2Group);
+
+      // 嚙合接觸點發光指示球
+      const glowGeo = new THREE.SphereGeometry(0.18, 16, 16);
+      const glowMat = new THREE.MeshBasicMaterial({
+        color: 0xfef08a,
+        transparent: true,
+        opacity: 0.9
+      });
+      gearSystem.contactGlow = new THREE.Mesh(glowGeo, glowMat);
+      scene.add(gearSystem.contactGlow);
+
+      // 兩齒輪上方旋轉方向箭頭
+      gearSystem.arrow1Group = createCurvedDirectionArrow(0xfbbf24); // 主動輪：逆時針 (+Z)
+      gearSystem.arrow2Group = createCurvedDirectionArrow(0x38bdf8); // 從動輪：順時針 (-Z)
+      gearSystem.arrow2Group.scale.x = -1; // 鏡像翻轉為順時針箭頭
+      scene.add(gearSystem.arrow1Group);
+      scene.add(gearSystem.arrow2Group);
+
+      // 從動齒輪 Z2 前後軸承座與中間傳動軸支撐座（X 座標隨 Z1+Z2 動態調整）
+      gearSystem.gear2BackBearing = createPillowBlock(0, state.shaftY, -0.75);
+      gearSystem.gear2FrontBearing = createPillowBlock(0, state.shaftY, 0.75);
+      gearSystem.axleMidBearing = createPillowBlock(0, state.shaftY, 2.5);
+
+      rebuildGears();
+    }
+
+    /**
+     * 當齒數 Z1 或 Z2 改變時，動態重新生成 3D 齒輪與更新空間配置
+     */
+    function rebuildGears() {
+      // 清空舊齒輪幾何並釋放記憶體
+      while (gearSystem.gear1Group.children.length > 0) {
+        const child = gearSystem.gear1Group.children[0];
+        gearSystem.gear1Group.remove(child);
+      }
+      while (gearSystem.gear2Group.children.length > 0) {
+        const child = gearSystem.gear2Group.children[0];
+        gearSystem.gear2Group.remove(child);
+      }
+
+      const r1 = (state.gearModule * state.z1) / 2;
+      const r2 = (state.gearModule * state.z2) / 2;
+      const x1 = state.motorX;
+      const x2 = x1 + r1 + r2;
+
+      // 陽極處理金黃色主動小齒輪 Z1
+      const mesh1 = createProceduralGearMesh(state.z1, state.gearModule, 0xf59e0b, 0xffffff);
+      gearSystem.gear1Group.add(mesh1);
+      gearSystem.gear1Group.position.set(x1, state.shaftY, 0);
+
+      // 陽極處理青鋼色從動大齒輪 Z2
+      const mesh2 = createProceduralGearMesh(state.z2, state.gearModule, 0x0ea5e9, 0xfef08a);
+      gearSystem.gear2Group.add(mesh2);
+      gearSystem.gear2Group.position.set(x2, state.shaftY, 0);
+
+      // 更新接觸點指示器位置 (x1 + r1, shaftY, 0)
+      gearSystem.contactGlow.position.set(x1 + r1, state.shaftY, 0);
+
+      // 更新方向箭頭位置（懸浮在各自齒輪上方）
+      const r1Outer = r1 + state.gearModule * 0.85;
+      const r2Outer = r2 + state.gearModule * 0.85;
+      gearSystem.arrow1Group.position.set(x1, state.shaftY + r1Outer - 0.15, 0.35);
+      gearSystem.arrow2Group.position.set(x2, state.shaftY + r2Outer - 0.15, 0.35);
+
+      // 同步移動從動齒輪軸承座、輸出傳動軸、驅動輪與動態路面平台 X 座標
+      if (gearSystem.gear2BackBearing) gearSystem.gear2BackBearing.position.x = x2;
+      if (gearSystem.gear2FrontBearing) gearSystem.gear2FrontBearing.position.x = x2;
+      if (gearSystem.axleMidBearing) gearSystem.axleMidBearing.position.x = x2;
+
+      if (wheelSystem.axleAndWheelGroup) {
+        wheelSystem.axleAndWheelGroup.position.x = x2;
+      }
+      if (wheelSystem.roadPivotGroup) {
+        wheelSystem.roadPivotGroup.position.x = x2;
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 7. 階段三：輸出傳動軸、3D 輪子與傾斜動態路面輸送帶
+    // --------------------------------------------------------------------------
+    const wheelSystem = {
+      axleAndWheelGroup: new THREE.Group(),
+      rotatingWheelGroup: new THREE.Group(),
+      roadPivotGroup: new THREE.Group(),
+      roadTexture: null,
+      tractionArrowGroup: new THREE.Group(),
+      tractionShaft: null,
+      tractionCone: null
+    };
+
+    function buildWheelAndRoadStage() {
+      const r1 = (state.gearModule * state.z1) / 2;
+      const r2 = (state.gearModule * state.z2) / 2;
+      const x2 = state.motorX + r1 + r2;
+      const y = state.shaftY;
+      const zWheel = state.wheelZ;
+      const wheelR = state.wheelVisualRadius;
+
+      // 1. 輸出傳動軸 + 輪子總成群組（隨 X2 水平移動）
+      wheelSystem.axleAndWheelGroup.position.set(x2, y, 0);
+      scene.add(wheelSystem.axleAndWheelGroup);
+
+      // 旋轉群組（繞 Z 軸旋轉）
+      wheelSystem.axleAndWheelGroup.add(wheelSystem.rotatingWheelGroup);
+
+      // 鋼製輸出傳動軸（從 Z = -0.85 延伸至輪轂 Z = wheelZ + 0.45）
+      const axleLen = zWheel + 1.3;
+      const axleMat = new THREE.MeshStandardMaterial({
+        color: 0xe2e8f0,
+        metalness: 0.92,
+        roughness: 0.16
+      });
+      const axleMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.24, 0.24, axleLen, 24),
+        axleMat
+      );
+      axleMesh.rotation.x = Math.PI / 2;
+      axleMesh.position.z = (zWheel + 0.45 - 0.85) / 2;
+      axleMesh.castShadow = true;
+      wheelSystem.rotatingWheelGroup.add(axleMesh);
+
+      // 3D 輪胎與輪圈總成（位於 Z = wheelZ）
+      const tireAssembly = new THREE.Group();
+      tireAssembly.position.z = zWheel;
+      wheelSystem.rotatingWheelGroup.add(tireAssembly);
+
+      const tireWidth = 1.35;
+      const rimR = wheelR * 0.62;
+
+      // 深色橡膠輪胎胎體
+      const tireShape = new THREE.Shape();
+      tireShape.absarc(0, 0, wheelR - 0.08, 0, Math.PI * 2, false);
+      const tireHole = new THREE.Path();
+      tireHole.absarc(0, 0, rimR - 0.04, 0, Math.PI * 2, true);
+      tireShape.holes.push(tireHole);
+
+      const tireGeo = new THREE.ExtrudeGeometry(tireShape, {
+        depth: tireWidth,
+        bevelEnabled: true,
+        bevelThickness: 0.12,
+        bevelSize: 0.1,
+        bevelSegments: 3,
+        curveSegments: 36
+      });
+      tireGeo.translate(0, 0, -tireWidth / 2);
+
+      const rubberMat = new THREE.MeshStandardMaterial({
+        color: 0x181c24,
+        metalness: 0.15,
+        roughness: 0.82
+      });
+      const tireMesh = new THREE.Mesh(tireGeo, rubberMat);
+      tireMesh.castShadow = true;
+      tireMesh.receiveShadow = true;
+      tireAssembly.add(tireMesh);
+
+      // 24 塊立體凸起輪胎胎紋塊（讓輪胎轉動與抓地感無比清晰）
+      const treadCount = 24;
+      const treadMat = new THREE.MeshStandardMaterial({
+        color: 0x262c38,
+        metalness: 0.2,
+        roughness: 0.78
+      });
+      for (let t = 0; t < treadCount; t++) {
+        const ta = (t * Math.PI * 2) / treadCount;
+        const treadBlock = new THREE.Mesh(
+          new THREE.BoxGeometry(0.26, 0.14, tireWidth * 0.86),
+          treadMat
+        );
+        treadBlock.position.set(
+          Math.cos(ta) * (wheelR - 0.02),
+          Math.sin(ta) * (wheelR - 0.02),
+          0
+        );
+        treadBlock.rotation.z = ta + Math.PI / 2;
+        treadBlock.castShadow = true;
+        tireAssembly.add(treadBlock);
+      }
+
+      // 金屬 5 輻條合金輪圈
+      const rimMat = new THREE.MeshStandardMaterial({
+        color: 0xcbd5e1,
+        metalness: 0.88,
+        roughness: 0.2
+      });
+      const outerRimRing = new THREE.Mesh(
+        new THREE.TorusGeometry(rimR, 0.12, 12, 36),
+        rimMat
+      );
+      outerRimRing.position.z = tireWidth * 0.36;
+      tireAssembly.add(outerRimRing);
+
+      const outerRimRingBack = outerRimRing.clone();
+      outerRimRingBack.position.z = -tireWidth * 0.36;
+      tireAssembly.add(outerRimRingBack);
+
+      // 5 根輻條（其中一根塗成亮橘色作為視覺追蹤參考標記）
+      for (let s = 0; s < 5; s++) {
+        const sa = (s * Math.PI * 2) / 5;
+        const spokeMat = s === 0
+          ? new THREE.MeshStandardMaterial({ color: 0xf97316, metalness: 0.5, roughness: 0.3 })
+          : rimMat;
+        const spoke = new THREE.Mesh(
+          new THREE.BoxGeometry(rimR - 0.22, 0.18, 0.24),
+          spokeMat
+        );
+        spoke.position.set(
+          Math.cos(sa) * ((rimR + 0.22) / 2),
+          Math.sin(sa) * ((rimR + 0.22) / 2),
+          tireWidth * 0.28
+        );
+        spoke.rotation.z = sa;
+        tireAssembly.add(spoke);
+      }
+
+      // 輪轂中心金黃色鎖緊螺帽蓋
+      const capMesh = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.45, 0.45, tireWidth + 0.36, 20),
+        new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.85, roughness: 0.22 })
+      );
+      capMesh.rotation.x = Math.PI / 2;
+      tireAssembly.add(capMesh);
+
+      // 2. 輪胎下方動態路面輸送帶平台（以輪胎接地點為旋轉樞軸，隨坡度阻力即時傾斜！）
+      const contactY = y - wheelR;
+      wheelSystem.roadPivotGroup.position.set(x2, contactY, zWheel);
+      scene.add(wheelSystem.roadPivotGroup);
+
+      // 路面輸送帶主體
+      wheelSystem.roadTexture = createRoadConveyorTexture();
+      const beltLen = 9.2;
+      const beltThick = 0.45;
+      const beltWidth = 2.4;
+
+      const beltMat = new THREE.MeshStandardMaterial({
+        map: wheelSystem.roadTexture,
+        roughness: 0.75,
+        metalness: 0.15
+      });
+      const frameMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        metalness: 0.75,
+        roughness: 0.35
+      });
+
+      const roadDeck = new THREE.Mesh(
+        new THREE.BoxGeometry(beltLen, beltThick, beltWidth),
+        [frameMat, frameMat, beltMat, frameMat, frameMat, frameMat]
+      );
+      roadDeck.position.set(0, -beltThick / 2, 0);
+      roadDeck.receiveShadow = true;
+      wheelSystem.roadPivotGroup.add(roadDeck);
+
+      // 輸送帶兩端滾筒裝飾
+      const rollerMat = new THREE.MeshStandardMaterial({
+        color: 0x64748b,
+        metalness: 0.85,
+        roughness: 0.25
+      });
+      [-beltLen / 2, beltLen / 2].forEach((rx) => {
+        const roller = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.24, 0.24, beltWidth + 0.14, 18),
+          rollerMat
+        );
+        roller.rotation.x = Math.PI / 2;
+        roller.position.set(rx, -beltThick / 2, 0);
+        wheelSystem.roadPivotGroup.add(roller);
+      });
+
+      // 路面支撐液壓立柱（從接觸點下方延伸至試驗台）
+      const roadSupport = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.28, 0.38, contactY - 0.2, 16),
+        frameMat
+      );
+      roadSupport.position.set(x2, (contactY - 0.2) / 2, zWheel);
+      roadSupport.castShadow = true;
+      scene.add(roadSupport);
+      wheelSystem.roadSupportMesh = roadSupport;
+
+      // 3. 輪胎與地面接觸點處的 3D 牽引力向量箭頭 (THREE.Group: 箭桿 + 箭頭圓錐)
+      wheelSystem.tractionArrowGroup.position.set(0, 0.12, beltWidth / 2 + 0.28);
+      wheelSystem.roadPivotGroup.add(wheelSystem.tractionArrowGroup);
+
+      const arrowMat = new THREE.MeshStandardMaterial({
+        color: 0xf97316,
+        emissive: 0xea580c,
+        emissiveIntensity: 0.55,
+        roughness: 0.25
+      });
+
+      // 箭桿（沿 +X 延伸）
+      const shaftGeo = new THREE.CylinderGeometry(0.08, 0.08, 1.0, 14);
+      shaftGeo.rotateZ(-Math.PI / 2);
+      shaftGeo.translate(0.5, 0, 0);
+      wheelSystem.tractionShaft = new THREE.Mesh(shaftGeo, arrowMat);
+      wheelSystem.tractionArrowGroup.add(wheelSystem.tractionShaft);
+
+      // 箭頭圓錐
+      const coneGeo = new THREE.ConeGeometry(0.22, 0.48, 16);
+      coneGeo.rotateZ(-Math.PI / 2);
+      wheelSystem.tractionCone = new THREE.Mesh(coneGeo, arrowMat);
+      wheelSystem.tractionArrowGroup.add(wheelSystem.tractionCone);
+    }
+
+    // --------------------------------------------------------------------------
+    // 8. 物理運算引擎 (Physics Engine & Stall Detection)
+    // --------------------------------------------------------------------------
+    function computePhysics() {
+      const powerRatio = state.powerPercent / 100; // 0.10 ~ 1.00
+      const gearRatio = state.z2 / state.z1;       // i = Z2 / Z1 (機械利益)
+
+      // 馬達無載/額定目標轉速 (滿電力時 3000 RPM)
+      const motorNominalRpm = 3000 * powerRatio;
+      // 馬達最大可用扭力 (滿電力時 0.80 N·m)
+      const motorAvailTorque = 0.80 * powerRatio;
+
+      // 輪軸最大可用輸出扭力 (計入 90% 傳動效率)
+      const wheelAvailTorque = motorAvailTorque * gearRatio * state.efficiency;
+
+      // 外部負載 / 爬坡阻力所需扭力 (0% -> 0.12 N·m, 100% -> 1.80 N·m)
+      const loadRatio = state.loadPercent / 100;
+      const loadTorque = 0.12 + loadRatio * 1.68;
+
+      // 折算至馬達端的等效負載扭力
+      const reflectedMotorTorque = loadTorque / (gearRatio * state.efficiency);
+
+      // 判斷是否失速 (Overload / Stall Detection)
+      const isStalled = reflectedMotorTorque > motorAvailTorque;
+
+      let actualMotorRpm = 0;
+      let actualWheelRpm = 0;
+
+      if (!state.isPlaying) {
+        actualMotorRpm = 0;
+        actualWheelRpm = 0;
+      } else if (isStalled) {
+        // 負載過重導致馬達失速 (0 RPM)
+        actualMotorRpm = 0;
+        actualWheelRpm = 0;
+      } else {
+        // 正常負載下，轉速隨負載比略微自然壓降 (直流馬達特性曲線)
+        const loadFactor = 1 - 0.18 * (reflectedMotorTorque / Math.max(0.01, motorAvailTorque));
+        actualMotorRpm = motorNominalRpm * Math.max(0.75, loadFactor);
+        actualWheelRpm = actualMotorRpm / gearRatio;
+      }
+
+      // 輪胎地面推進力 (N) = 輪軸輸出扭力 / 輪胎物理半徑 (0.20 m)
+      const tractionForceN = wheelAvailTorque / state.wheelPhysRadius;
+
+      // 車輛前進線速度 (m/s) = ω_wheel * r_wheel
+      const wheelOmegaRadSec = (actualWheelRpm * 2 * Math.PI) / 60;
+      const linearVelocityMs = wheelOmegaRadSec * state.wheelPhysRadius;
+
+      // 傳動模式判斷
+      let modeType = 'equal';
+      if (state.z2 > state.z1) modeType = 'reduce';      // 減速增扭
+      else if (state.z2 < state.z1) modeType = 'overdrive'; // 加速減扭
+
+      return {
+        gearRatio,
+        motorAvailTorque,
+        wheelAvailTorque,
+        loadTorque,
+        reflectedMotorTorque,
+        isStalled,
+        actualMotorRpm,
+        actualWheelRpm,
+        tractionForceN,
+        linearVelocityMs,
+        modeType
+      };
+    }
+
+    // --------------------------------------------------------------------------
+    // 9. 更新 HUD 儀表板與 3D 視覺回饋
+    // --------------------------------------------------------------------------
+    const ui = {
+      valPower: document.getElementById('valPower'),
+      valZ1: document.getElementById('valZ1'),
+      valZ2: document.getElementById('valZ2'),
+      valLoad: document.getElementById('valLoad'),
+      valSlopeDeg: document.getElementById('valSlopeDeg'),
+
+      teleTeethRatio: document.getElementById('teleTeethRatio'),
+      teleMechAdv: document.getElementById('teleMechAdv'),
+      modeBadge: document.getElementById('modeBadge'),
+
+      teleMotorRpm: document.getElementById('teleMotorRpm'),
+      barMotorRpm: document.getElementById('barMotorRpm'),
+      teleWheelRpm: document.getElementById('teleWheelRpm'),
+      teleWheelRpmText: document.getElementById('teleWheelRpmText'),
+      barWheelRpm: document.getElementById('barWheelRpm'),
+
+      teleMotorTorque: document.getElementById('teleMotorTorque'),
+      barMotorTorque: document.getElementById('barMotorTorque'),
+      teleWheelTorque: document.getElementById('teleWheelTorque'),
+      teleWheelTorqueText: document.getElementById('teleWheelTorqueText'),
+      barWheelTorque: document.getElementById('barWheelTorque'),
+
+      teleTractionN: document.getElementById('teleTractionN'),
+      teleVelocityMs: document.getElementById('teleVelocityMs'),
+      teleLoadTorque: document.getElementById('teleLoadTorque'),
+      teleAvailTorque: document.getElementById('teleAvailTorque'),
+      teleLoadStatus: document.getElementById('teleLoadStatus'),
+
+      stallBanner: document.getElementById('stallBanner'),
+      telemetryLiveDot: document.getElementById('telemetryLiveDot'),
+
+      labelMotor: document.getElementById('labelMotor'),
+      labelGears: document.getElementById('labelGears'),
+      labelWheel: document.getElementById('labelWheel')
+    };
+
+    function updateHUDAndVisuals(phys) {
+      // 1. 滑桿數值顯示
+      const slopeDeg = (state.loadPercent / 100) * 22.0; // 最大 22 度爬坡傾角
+      ui.valPower.textContent = state.powerPercent;
+      ui.valZ1.textContent = state.z1;
+      ui.valZ2.textContent = state.z2;
+      ui.valLoad.textContent = state.loadPercent;
+      ui.valSlopeDeg.textContent = slopeDeg.toFixed(1);
+
+      // 2. 齒輪比與模式標籤
+      ui.teleTeethRatio.textContent = `${state.z1} : ${state.z2}`;
+      ui.teleMechAdv.textContent = phys.gearRatio.toFixed(2);
+
+      if (phys.modeType === 'reduce') {
+        ui.modeBadge.textContent = '減速增扭';
+        ui.modeBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/50';
+      } else if (phys.modeType === 'overdrive') {
+        ui.modeBadge.textContent = '加速減扭';
+        ui.modeBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-sky-500/20 text-sky-300 border border-sky-400/50';
+      } else {
+        ui.modeBadge.textContent = '等速傳動';
+        ui.modeBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/50';
+      }
+
+      // 3. 轉速與扭力數值 + 對比長條圖
+      const maxRpmScale = 4500;
+      const maxTorqueScale = 4.2;
+
+      ui.teleMotorRpm.textContent = Math.round(phys.actualMotorRpm);
+      ui.barMotorRpm.style.width = `${Math.min(100, (phys.actualMotorRpm / maxRpmScale) * 100)}%`;
+
+      ui.teleWheelRpm.textContent = Math.round(phys.actualWheelRpm);
+      ui.barWheelRpm.style.width = `${Math.min(100, (phys.actualWheelRpm / maxRpmScale) * 100)}%`;
+
+      ui.teleMotorTorque.textContent = phys.motorAvailTorque.toFixed(2);
+      ui.barMotorTorque.style.width = `${Math.min(100, (phys.motorAvailTorque / maxTorqueScale) * 100)}%`;
+
+      ui.teleWheelTorque.textContent = phys.wheelAvailTorque.toFixed(2);
+      ui.barWheelTorque.style.width = `${Math.min(100, (phys.wheelAvailTorque / maxTorqueScale) * 100)}%`;
+
+      // 4. 地面推進力與前進速度
+      ui.teleTractionN.textContent = phys.tractionForceN.toFixed(1);
+      ui.teleVelocityMs.textContent = phys.linearVelocityMs.toFixed(2);
+      ui.teleLoadTorque.textContent = phys.loadTorque.toFixed(2);
+      ui.teleAvailTorque.textContent = phys.wheelAvailTorque.toFixed(2);
+
+      // 5. 失速警告橫幅與狀態指示
+      if (phys.isStalled && state.isPlaying) {
+        ui.stallBanner.classList.remove('hidden');
+        ui.teleLoadStatus.textContent = '⛔ 扭力不足失速';
+        ui.teleLoadStatus.className = 'text-red-400 font-bold';
+        ui.telemetryLiveDot.className = 'w-2 h-2 rounded-full bg-red-500 animate-ping';
+        ui.teleWheelRpmText.className = 'text-red-400 font-bold';
+      } else {
+        ui.stallBanner.classList.add('hidden');
+        ui.teleLoadStatus.textContent = state.isPlaying ? '● 動力充足' : '⏸ 已暫停';
+        ui.teleLoadStatus.className = state.isPlaying ? 'text-emerald-400 font-bold' : 'text-slate-400 font-bold';
+        ui.telemetryLiveDot.className = state.isPlaying
+          ? 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse'
+          : 'w-2 h-2 rounded-full bg-slate-500';
+        ui.teleWheelRpmText.className = 'text-emerald-300 font-bold';
+      }
+
+      // 6. 更新 3D 路面平台傾斜角與支撐柱 X 位置
+      const tiltRad = (slopeDeg * Math.PI) / 180;
+      wheelSystem.roadPivotGroup.rotation.z = tiltRad;
+      if (wheelSystem.roadSupportMesh) {
+        wheelSystem.roadSupportMesh.position.x = wheelSystem.roadPivotGroup.position.x;
+      }
+
+      // 7. 依輪胎輸出推進力動態縮放 3D 牽引力箭頭長度與粗細
+      const forceNorm = Math.min(1, Math.max(0.08, phys.tractionForceN / 20.0));
+      const arrowLen = 1.0 + forceNorm * 2.8;   // 1.0 ~ 3.8 單位長
+      const arrowThick = 0.8 + forceNorm * 1.1; // 0.8 ~ 1.9 倍粗細
+
+      wheelSystem.tractionShaft.scale.set(arrowLen, arrowThick, arrowThick);
+      wheelSystem.tractionCone.scale.set(arrowThick, arrowThick, arrowThick);
+      wheelSystem.tractionCone.position.set(arrowLen + 0.18 * arrowThick, 0, 0);
+
+      // 失速時箭頭變紅閃爍，正常時為亮橘色
+      const arrowColor = (phys.isStalled && state.isPlaying) ? 0xef4444 : 0xf97316;
+      wheelSystem.tractionShaft.material.color.setHex(arrowColor);
+      wheelSystem.tractionShaft.material.emissive.setHex(arrowColor);
+    }
+
+    // --------------------------------------------------------------------------
+    // 10. 3D 座標投影至 2D 浮動 HTML 標籤
+    // --------------------------------------------------------------------------
+    const tempProjVec = new THREE.Vector3();
+
+    function project3DToScreen(worldVec, domEl) {
+      if (!state.showLabels) {
+        domEl.style.opacity = '0';
+        return;
+      }
+      tempProjVec.copy(worldVec).project(camera);
+      // 若在相機後方則隱藏
+      if (tempProjVec.z > 1) {
+        domEl.style.opacity = '0';
+        return;
+      }
+      const x = (tempProjVec.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-tempProjVec.y * 0.5 + 0.5) * window.innerHeight;
+      domEl.style.left = `${x}px`;
+      domEl.style.top = `${y}px`;
+      domEl.style.opacity = '1';
+    }
+
+    function update3DLabels() {
+      const r1 = (state.gearModule * state.z1) / 2;
+      const r2 = (state.gearModule * state.z2) / 2;
+      const x1 = state.motorX;
+      const x2 = x1 + r1 + r2;
+
+      // 1. 馬達上方錨點
+      project3DToScreen(new THREE.Vector3(x1, state.shaftY + 2.35, -3.0), ui.labelMotor);
+      // 2. 齒輪組上方錨點
+      const maxGearR = Math.max(r1, r2);
+      project3DToScreen(new THREE.Vector3((x1 + x2) / 2, state.shaftY + maxGearR + 1.05, 0), ui.labelGears);
+      // 3. 驅動輪上方錨點
+      project3DToScreen(new THREE.Vector3(x2, state.shaftY + state.wheelVisualRadius + 0.55, state.wheelZ), ui.labelWheel);
+    }
+
+    // --------------------------------------------------------------------------
+    // 11. 主動畫迴圈 (requestAnimationFrame)
+    // --------------------------------------------------------------------------
+    let lastTime = 0;
+
+    function animate(timestamp) {
+      requestAnimationFrame(animate);
+
+      if (!lastTime) lastTime = timestamp;
+      const dt = Math.min(0.05, (timestamp - lastTime) / 1000);
+      lastTime = timestamp;
+
+      const phys = computePhysics();
+      const timeScale = state.slowMo ? 0.25 : 1.0;
+
+      // 1. 更新機械旋轉角度與齒輪嚴格嚙合同步
+      if (state.isPlaying && !phys.isStalled) {
+        // 視覺角速度縮放（避免高 RPM 在 60Hz 螢幕產生頻閃倒轉錯覺，同時嚴格維持齒輪比與輪速比）
+        const visualMotorRpm = phys.actualMotorRpm * 0.11;
+        const omega1 = ((visualMotorRpm * 2 * Math.PI) / 60) * timeScale;
+        state.angle1 += omega1 * dt;
+
+        // 路面輸送帶紋理向後滾動 (-X 方向，對應 texture.offset.x 增加)
+        const wheelOmega = omega1 * (state.z1 / state.z2);
+        state.roadScroll += wheelOmega * 0.42 * dt;
+        if (wheelSystem.roadTexture) {
+          wheelSystem.roadTexture.offset.x = state.roadScroll;
+        }
+
+        // 電磁場粒子依輸入電力速度旋轉脈動
+        state.fluxTime += dt * timeScale * (0.4 + (state.powerPercent / 100) * 1.8);
+      } else if (state.isPlaying && phys.isStalled) {
+        // 失速堵轉時的微幅高頻受力震動
+        state.stallJitterTime += dt;
+      }
+
+      const jitterAngle = (state.isPlaying && phys.isStalled)
+        ? Math.sin(state.stallJitterTime * 55) * 0.018
+        : 0;
+
+      const theta1 = state.angle1 + jitterAngle;
+      // 精確齒輪嚙合相位公式：初始偏移 π + π/Z2，反向旋轉 -θ1 * (Z1 / Z2)
+      const theta2 = -theta1 * (state.z1 / state.z2) + Math.PI + Math.PI / state.z2;
+      // 輪子與從動齒輪 Z2 同軸同角速度旋轉
+      const thetaWheel = -theta1 * (state.z1 / state.z2);
+
+      // 套用旋轉至 3D 物件
+      motorComponents.rotorGroup.rotation.z = theta1;
+      gearSystem.gear1Group.rotation.z = theta1;
+      gearSystem.gear2Group.rotation.z = theta2;
+      wheelSystem.rotatingWheelGroup.rotation.z = thetaWheel;
+
+      // 2. 更新馬達內部發光電磁場粒子與光環
+      const powerFactor = state.powerPercent / 100;
+      motorComponents.fluxRings.forEach((ring, idx) => {
+        ring.material.opacity = state.isPlaying
+          ? (0.2 + powerFactor * 0.45) * (0.75 + 0.25 * Math.sin(state.fluxTime * 5 + idx))
+          : 0.15;
+      });
+      motorComponents.fluxParticles.forEach((p) => {
+        const a = p.userData.angle + state.fluxTime * 2.2;
+        p.position.set(
+          Math.cos(a) * p.userData.radius,
+          Math.sin(a) * p.userData.radius,
+          p.userData.zOff
+        );
+        p.visible = state.isPlaying;
+      });
+
+      // 嚙合接觸點微幅呼吸發光
+      const pulseScale = state.isPlaying ? 1 + 0.22 * Math.sin(state.fluxTime * 8) : 0.85;
+      gearSystem.contactGlow.scale.setScalar(pulseScale);
+
+      // 3. 相機平滑過渡插值 (Camera View Presets)
+      if (state.cameraLerpActive) {
+        camera.position.lerp(state.targetCamPos, 0.08);
+        controls.target.lerp(state.targetControlsCenter, 0.08);
+        if (
+          camera.position.distanceTo(state.targetCamPos) < 0.03 &&
+          controls.target.distanceTo(state.targetControlsCenter) < 0.03
+        ) {
+          state.cameraLerpActive = false;
+        }
+      }
+
+      controls.update();
+      updateHUDAndVisuals(phys);
+      update3DLabels();
+      renderer.render(scene, camera);
+    }
+
+    // --------------------------------------------------------------------------
+    // 12. 互動控制事件綁定 (相機視角、工況預設、滑桿、摺疊面板)
+    // --------------------------------------------------------------------------
+    function setCameraView(viewKey) {
+      const r1 = (state.gearModule * state.z1) / 2;
+      const r2 = (state.gearModule * state.z2) / 2;
+      const x1 = state.motorX;
+      const x2 = x1 + r1 + r2;
+      const y = state.shaftY;
+
+      if (viewKey === 'overview') {
+        state.targetCamPos.set(-1.5, 9.2, 16.5);
+        state.targetControlsCenter.set(-0.3, 4.6, 0.8);
+      } else if (viewKey === 'motor') {
+        state.targetCamPos.set(x1 - 3.6, y + 1.8, -0.4);
+        state.targetControlsCenter.set(x1, y, -3.0);
+      } else if (viewKey === 'gears') {
+        state.targetCamPos.set((x1 + x2) / 2, y + 0.6, 7.2);
+        state.targetControlsCenter.set((x1 + x2) / 2, y, 0.0);
+      } else if (viewKey === 'wheel') {
+        state.targetCamPos.set(x2 + 4.8, y - 0.6, state.wheelZ + 6.8);
+        state.targetControlsCenter.set(x2 + 0.6, y - 1.5, state.wheelZ);
+      }
+      state.cameraLerpActive = true;
+
+      // 高亮目前選中的視角按鈕
+      document.querySelectorAll('.cam-btn').forEach((btn) => {
+        if (btn.getAttribute('data-cam') === viewKey) {
+          btn.className = 'cam-btn px-2.5 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50 transition';
+        } else {
+          btn.className = 'cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-800/80 border border-transparent transition';
+        }
+      });
+    }
+
+    function applyScenario(key) {
+      if (key === 'climb') {
+        state.z1 = 12;
+        state.z2 = 42;
+        state.loadPercent = 65;
+      } else if (key === 'balanced') {
+        state.z1 = 16;
+        state.z2 = 32;
+        state.loadPercent = 30;
+      } else if (key === 'speed') {
+        state.z1 = 30;
+        state.z2 = 20;
+        state.loadPercent = 15;
+      }
+
+      document.getElementById('sliderZ1').value = state.z1;
+      document.getElementById('sliderZ2').value = state.z2;
+      document.getElementById('sliderLoad').value = state.loadPercent;
+      rebuildGears();
+
+      document.querySelectorAll('.scenario-btn').forEach((btn) => {
+        if (btn.getAttribute('data-scenario') === key) {
+          btn.className = 'scenario-btn py-2 px-1.5 rounded-xl text-center bg-amber-500/20 border border-amber-400/70 text-amber-200 transition';
+        } else {
+          btn.className = 'scenario-btn py-2 px-1.5 rounded-xl text-center bg-slate-800/80 hover:bg-slate-700/80 border border-slate-600/60 text-slate-200 transition';
+        }
+      });
+    }
+
+    function bindEvents() {
+      // 視角切換按鈕
+      document.querySelectorAll('.cam-btn').forEach((btn) => {
+        btn.addEventListener('click', () => setCameraView(btn.getAttribute('data-cam')));
+      });
+
+      // 工況預設按鈕
+      document.querySelectorAll('.scenario-btn').forEach((btn) => {
+        btn.addEventListener('click', () => applyScenario(btn.getAttribute('data-scenario')));
+      });
+
+      // 播放 / 暫停按鈕
+      const btnPlayPause = document.getElementById('btnPlayPause');
+      btnPlayPause.addEventListener('click', () => {
+        state.isPlaying = !state.isPlaying;
+        document.getElementById('playIcon').textContent = state.isPlaying ? '⏸' : '▶';
+        document.getElementById('playText').textContent = state.isPlaying ? '暫停運轉' : '繼續運轉';
+        btnPlayPause.className = state.isPlaying
+          ? 'py-2 px-3 rounded-xl font-bold text-xs bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md border border-emerald-400/30 transition flex items-center justify-center gap-1.5'
+          : 'py-2 px-3 rounded-xl font-bold text-xs bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-md border border-cyan-400/30 transition flex items-center justify-center gap-1.5';
+      });
+
+      // 慢動作觀察 (0.25x)
+      const btnSlowMo = document.getElementById('btnSlowMo');
+      btnSlowMo.addEventListener('click', () => {
+        state.slowMo = !state.slowMo;
+        const dot = document.getElementById('slowDot');
+        if (state.slowMo) {
+          btnSlowMo.classList.add('border-amber-400/70', 'text-amber-300', 'bg-amber-950/50');
+          dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+        } else {
+          btnSlowMo.classList.remove('border-amber-400/70', 'text-amber-300', 'bg-amber-950/50');
+          dot.className = 'w-2 h-2 rounded-full bg-slate-400';
+        }
+      });
+
+      // 馬達外殼透視開關
+      const btnCutaway = document.getElementById('btnCutaway');
+      btnCutaway.addEventListener('click', () => {
+        state.motorCutaway = !state.motorCutaway;
+        if (motorComponents.housingMat) {
+          motorComponents.housingMat.opacity = state.motorCutaway ? 0.26 : 0.94;
+          motorComponents.housingMat.depthWrite = !state.motorCutaway;
+        }
+        btnCutaway.className = state.motorCutaway
+          ? 'px-2.5 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 transition'
+          : 'px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 text-slate-300 border border-slate-600/50 transition';
+      });
+
+      // 3D 標籤顯示開關
+      const btnLabels = document.getElementById('btnLabels');
+      btnLabels.addEventListener('click', () => {
+        state.showLabels = !state.showLabels;
+        btnLabels.className = state.showLabels
+          ? 'px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 transition'
+          : 'px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 text-slate-300 border border-slate-600/50 transition';
+      });
+
+      // 四個即時參數滑桿
+      document.getElementById('sliderPower').addEventListener('input', (e) => {
+        state.powerPercent = parseInt(e.target.value, 10);
+      });
+
+      document.getElementById('sliderZ1').addEventListener('input', (e) => {
+        state.z1 = parseInt(e.target.value, 10);
+        rebuildGears();
+      });
+
+      document.getElementById('sliderZ2').addEventListener('input', (e) => {
+        state.z2 = parseInt(e.target.value, 10);
+        rebuildGears();
+      });
+
+      document.getElementById('sliderLoad').addEventListener('input', (e) => {
+        state.loadPercent = parseInt(e.target.value, 10);
+      });
+
+      // 面板收合控制
+      let leftCollapsed = false;
+      document.getElementById('toggleLeftPanel').addEventListener('click', (e) => {
+        leftCollapsed = !leftCollapsed;
+        document.getElementById('leftPanelBody').classList.toggle('hidden', leftCollapsed);
+        e.target.textContent = leftCollapsed ? '展開 ▼' : '收合 ▲';
+      });
+
+      let rightCollapsed = false;
+      document.getElementById('toggleRightPanel').addEventListener('click', (e) => {
+        rightCollapsed = !rightCollapsed;
+        document.getElementById('rightPanelBody').classList.toggle('hidden', rightCollapsed);
+        e.target.textContent = rightCollapsed ? '展開 ▼' : '收合 ▲';
+      });
+
+      // 運作原理解析卡片摺疊
+      let theoryCollapsed = false;
+      document.getElementById('toggleTheoryBtn').addEventListener('click', () => {
+        theoryCollapsed = !theoryCollapsed;
+        document.getElementById('theoryBody').classList.toggle('hidden', theoryCollapsed);
+        document.getElementById('theoryArrow').textContent = theoryCollapsed ? '▶' : '▼';
+      });
+
+      // 視窗大小自適應
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
+
+    // --------------------------------------------------------------------------
+    // 13. 視窗載入後啟動 3D 引擎
+    // --------------------------------------------------------------------------
+    window.onload = function () {
+      setupEnvironmentAndLights();
+      buildMotorStage();
+      initGearSystem();
+      buildWheelAndRoadStage();
+      bindEvents();
+      requestAnimationFrame(animate);
+    };
+  </script>
+</body>
+</html>

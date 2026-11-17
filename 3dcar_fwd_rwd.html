@@ -1,0 +1,2596 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D 汽車機械傳動與動力轉換模擬（FWD 前驅 / RWD 後驅切換）</title>
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 載入 Three.js r128 與 OrbitControls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <!-- 載入 Google Fonts (Noto Sans TC & JetBrains Mono) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans TC"', '"Inter"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      background-color: #050a14;
+      color: #e2e8f0;
+      font-family: "Noto Sans TC", "Inter", sans-serif;
+      user-select: none;
+    }
+
+    #webglContainer {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+    }
+
+    /* 毛玻璃工程面板樣式 */
+    .hud-glass {
+      background: rgba(8, 15, 29, 0.78);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(56, 189, 248, 0.22);
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.55);
+    }
+
+    /* 自訂工業滑桿 */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-runnable-track {
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(30, 49, 82, 0.95);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      margin-top: -6px;
+      background-color: #06b6d4;
+      border: 2px solid #ecfeff;
+      height: 17px;
+      width: 17px;
+      border-radius: 50%;
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.75);
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.16);
+      background-color: #22d3ee;
+    }
+
+    input[type="range"].gold-slider::-webkit-slider-thumb {
+      background-color: #f59e0b;
+      box-shadow: 0 0 10px rgba(245, 158, 11, 0.75);
+    }
+
+    input[type="range"].cyan-slider::-webkit-slider-thumb {
+      background-color: #38bdf8;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.75);
+    }
+
+    input[type="range"].orange-slider::-webkit-slider-thumb {
+      background-color: #f97316;
+      box-shadow: 0 0 10px rgba(249, 115, 22, 0.75);
+    }
+
+    /* 細緻捲軸 */
+    .hud-scroll::-webkit-scrollbar {
+      width: 5px;
+    }
+    .hud-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .hud-scroll::-webkit-scrollbar-thumb {
+      background: rgba(56, 189, 248, 0.28);
+      border-radius: 999px;
+    }
+
+    /* 3D 浮動標註標籤 */
+    .label-3d {
+      position: absolute;
+      transform: translate(-50%, -100%);
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 10;
+    }
+
+    /* 失速警告脈衝動畫 */
+    @keyframes stallPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+      50% { box-shadow: 0 0 22px 5px rgba(239, 68, 68, 0.4); }
+    }
+    .stall-banner {
+      animation: stallPulse 1.3s infinite;
+    }
+
+    /* 打滑警告脈衝動畫 */
+    @keyframes slipPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.5); }
+      50% { box-shadow: 0 0 18px 4px rgba(245, 158, 11, 0.35); }
+    }
+    .slip-banner {
+      animation: slipPulse 1.4s infinite;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 全螢幕 3D WebGL 畫布容器 -->
+  <div id="webglContainer"></div>
+
+  <!-- 3D 空間投影浮動 HTML 標籤層 -->
+  <div id="labelsOverlay" class="fixed inset-0 pointer-events-none z-10 overflow-hidden">
+    <!-- 標籤 1：前置馬達（隨 RWD 縱向 / FWD 橫向自動切換位置與文字） -->
+    <div id="labelMotor" class="label-3d flex flex-col items-center">
+      <div class="px-2.5 py-1 rounded-lg bg-slate-950/85 border border-cyan-400/50 text-cyan-200 text-xs font-bold shadow-lg backdrop-blur-md whitespace-nowrap flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+        <span id="labelMotorText">1. 前置縱向直流馬達 (高轉速/低扭力)</span>
+      </div>
+      <div class="w-px h-5 bg-gradient-to-b from-cyan-400/80 to-transparent"></div>
+    </div>
+
+    <!-- 標籤 2：變速齒輪組 / 前驅一體箱 Transaxle -->
+    <div id="labelGears" class="label-3d flex flex-col items-center">
+      <div class="px-2.5 py-1 rounded-lg bg-slate-950/85 border border-amber-400/50 text-amber-200 text-xs font-bold shadow-lg backdrop-blur-md whitespace-nowrap flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+        <span id="labelGearsText">2. 縱置變速箱 Z₁→Z₂ (變速增扭)</span>
+      </div>
+      <div class="w-px h-5 bg-gradient-to-b from-amber-400/80 to-transparent"></div>
+    </div>
+
+    <!-- 標籤 3：中央傳動軸 / 淨空通道與隨動後軸 -->
+    <div id="labelDriveshaft" class="label-3d flex flex-col items-center">
+      <div class="px-2.5 py-1 rounded-lg bg-slate-950/85 border border-sky-400/50 text-sky-200 text-xs font-bold shadow-lg backdrop-blur-md whitespace-nowrap flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-sky-400 animate-pulse"></span>
+        <span id="labelDriveshaftText">3. 中央傳動軸與十字萬向接頭</span>
+      </div>
+      <div class="w-px h-5 bg-gradient-to-b from-sky-400/80 to-transparent"></div>
+    </div>
+
+    <!-- 標籤 4：驅動輪與差速機構 -->
+    <div id="labelRearAxle" class="label-3d flex flex-col items-center">
+      <div class="px-2.5 py-1 rounded-lg bg-slate-950/85 border border-emerald-400/50 text-emerald-200 text-xs font-bold shadow-lg backdrop-blur-md whitespace-nowrap flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        <span id="labelRearAxleText">4. 後軸差速器與雙後驅動輪</span>
+      </div>
+      <div class="w-px h-5 bg-gradient-to-b from-emerald-400/80 to-transparent"></div>
+    </div>
+  </div>
+
+  <!-- 頂部懸浮標題與視角 / 視覺開關列 -->
+  <header class="fixed top-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+    <!-- 左上標題卡片 -->
+    <div class="hud-glass rounded-2xl px-3.5 py-2 flex items-center gap-3 pointer-events-auto">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/25 border border-cyan-300/30 flex-none">
+        <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M5 17h14v-5l-2.5-4.5h-9L5 12v5z" />
+          <circle cx="7.5" cy="17" r="2.2" />
+          <circle cx="16.5" cy="17" r="2.2" />
+        </svg>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <h1 class="text-sm sm:text-base font-bold text-white tracking-wide leading-tight">
+            3D 汽車機械傳動與動力轉換模擬
+          </h1>
+          <span id="headerDriveBadge" class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-amber-500/25 text-amber-200 border border-amber-400/50">
+            RWD 後輪驅動
+          </span>
+        </div>
+        <p id="headerSubtitle" class="text-[11px] text-slate-400 hidden sm:block">
+          前置縱向馬達 → 縱置變速箱 → 中央傳動軸 → 後軸差速器 → 雙後驅動輪
+        </p>
+      </div>
+    </div>
+
+    <!-- 右上：視角切換與顯示開關 -->
+    <div class="flex flex-wrap items-center gap-1.5 pointer-events-auto">
+      <!-- 視角切換按鈕群 -->
+      <div class="hud-glass rounded-xl p-1 flex flex-wrap items-center gap-1">
+        <span class="text-[11px] text-slate-400 px-1.5 hidden xl:inline font-medium">視角:</span>
+        <button data-cam="overview" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50 transition">
+          3/4 全景
+        </button>
+        <button data-cam="drivetrain" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-800/80 border border-transparent transition">
+          傳動系統特寫
+        </button>
+        <button data-cam="gearbox" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-800/80 border border-transparent transition">
+          齒輪嚙合微距
+        </button>
+        <button data-cam="wheel" class="cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-800/80 border border-transparent transition">
+          驅動輪接地視角
+        </button>
+      </div>
+
+      <!-- 輔助視覺開關 -->
+      <div class="hud-glass rounded-xl p-1 flex items-center gap-1">
+        <button id="btnCarShell" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 transition" title="切換半透明車殼或純底盤裸車檢視">
+          透視車殼：開
+        </button>
+        <button id="btnVectors" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-orange-500/20 text-orange-300 border border-orange-400/40 transition" title="顯示或隱藏牽引力向量與磁力線">
+          力向量/磁場
+        </button>
+        <button id="btnLabels" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 transition" title="顯示或隱藏 3D 結構標註">
+          3D 零件標籤
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 失速 / 馬達過載紅色警告橫幅 -->
+  <div id="stallBanner" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-2xl px-4 py-3 rounded-2xl bg-red-950/92 border-2 border-red-500 text-red-100 backdrop-blur-md stall-banner flex items-center gap-3 shadow-2xl">
+    <div class="w-9 h-9 rounded-xl bg-red-500/25 border border-red-400 flex items-center justify-center text-red-300 font-black text-xl flex-none">
+      !
+    </div>
+    <div id="stallBannerText" class="text-xs sm:text-sm font-bold text-red-200 leading-snug">
+      ⛔ 扭力不足／馬達過載失速：輸出牽引力小於坡度與滾動阻力，車輛無法前進（0.0 km/h）！請增大從動齒輪 Z₂、減小主動齒輪 Z₁ 或提高電壓。
+    </div>
+  </div>
+
+  <!-- 前輪抓地力不足 / 輕微打滑琥珀色提示橫幅（FWD 爬坡重心後移時觸發） -->
+  <div id="slipBanner" class="hidden fixed top-20 left-1/2 -translate-x-1/2 z-30 w-[92%] max-w-2xl px-4 py-3 rounded-2xl bg-amber-950/92 border-2 border-amber-400 text-amber-100 backdrop-blur-md slip-banner flex items-center gap-3 shadow-2xl">
+    <div class="w-9 h-9 rounded-xl bg-amber-500/25 border border-amber-300 flex items-center justify-center text-amber-300 font-black text-lg flex-none">
+      ⚡
+    </div>
+    <div id="slipBannerText" class="text-xs sm:text-sm font-bold text-amber-200 leading-snug">
+      ⚠️ 前輪抓地力不足／輕微打滑：爬坡重心後移使前輪下壓力減輕，前輪輸出扭力超過靜摩擦力上限，產生空轉滑移！（可切換為 RWD 體驗後輪下壓力增加的爬坡優勢）
+    </div>
+  </div>
+
+  <!-- 左側可收合控制與參數面板 -->
+  <aside id="leftPanel" class="fixed top-20 left-3 bottom-3 w-[320px] sm:w-[348px] z-20 flex flex-col gap-2.5 pointer-events-none transition-transform duration-300">
+    <!-- 面板收合控制按鈕 -->
+    <div class="flex items-center justify-between hud-glass rounded-xl px-3 py-2 pointer-events-auto">
+      <span class="text-xs font-bold tracking-wider text-cyan-400 flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
+        傳動架構與工況控制面板
+      </span>
+      <button id="toggleLeftPanel" class="text-xs text-slate-300 hover:text-white px-2 py-0.5 rounded bg-slate-800/80 border border-slate-600/50 transition">
+        收合 ▲
+      </button>
+    </div>
+
+    <!-- 左側可捲動內容 -->
+    <div id="leftPanelBody" class="flex-1 min-h-0 overflow-y-auto hud-scroll flex flex-col gap-2.5 pr-0.5 pointer-events-auto">
+
+      <!-- 0. 顯眼的前輪驅動 (FWD) vs 後輪驅動 (RWD) 切換開關 -->
+      <div class="hud-glass rounded-2xl p-3 border-cyan-400/40">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-bold text-white flex items-center gap-1.5">
+            <span class="w-1.5 h-3.5 bg-cyan-400 rounded-full"></span>
+            驅動架構即時切換
+          </span>
+          <span id="driveEffBadge" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-cyan-300 border border-cyan-500/30">
+            機械效率 η = 89%
+          </span>
+        </div>
+        <div class="grid grid-cols-2 gap-2 p-1 rounded-xl bg-slate-950/85 border border-slate-800">
+          <button id="btnModeRWD" class="py-2.5 px-2 rounded-lg text-center font-bold transition-all bg-gradient-to-br from-amber-500/30 to-orange-600/25 border border-amber-400/80 text-amber-200 shadow-md">
+            <div class="text-xs sm:text-sm">後輪驅動 (RWD)</div>
+            <div class="text-[10px] font-normal text-amber-300/90 mt-0.5">縱置馬達+傳動軸+後差速</div>
+          </button>
+          <button id="btnModeFWD" class="py-2.5 px-2 rounded-lg text-center font-medium transition-all bg-transparent hover:bg-slate-800/70 border border-transparent text-slate-400">
+            <div class="text-xs sm:text-sm">前輪驅動 (FWD)</div>
+            <div class="text-[10px] font-normal text-slate-400 mt-0.5">橫置馬達+前驅一體箱</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- 1. 播放控制與慢動作 -->
+      <div class="hud-glass rounded-2xl p-3">
+        <div class="grid grid-cols-2 gap-2">
+          <button id="btnPlayPause" class="py-2 px-3 rounded-xl font-bold text-xs bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-md border border-emerald-400/30 transition flex items-center justify-center gap-1.5">
+            <span id="playIcon">⏸</span>
+            <span id="playText">暫停運轉</span>
+          </button>
+
+          <button id="btnSlowMo" class="py-2 px-3 rounded-xl font-bold text-xs bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-600/60 transition flex items-center justify-center gap-1.5">
+            <span id="slowDot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+            <span>慢動作觀察 (0.25x)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. 預設工況按鈕 -->
+      <div class="hud-glass rounded-2xl p-3">
+        <div class="text-xs font-bold text-amber-400 mb-2 flex items-center gap-1.5">
+          <span class="w-1.5 h-3.5 bg-amber-400 rounded-full"></span>
+          快捷工況預設
+        </div>
+        <div class="grid grid-cols-3 gap-1.5">
+          <button data-scenario="climb" class="scenario-btn py-2 px-1.5 rounded-xl text-center bg-amber-500/20 border border-amber-400/70 text-amber-200 transition">
+            <div class="text-xs font-bold">爬坡重載模式</div>
+            <div class="text-[10px] font-mono text-amber-300/90 mt-0.5">1:4 減速增扭</div>
+          </button>
+          <button data-scenario="cruise" class="scenario-btn py-2 px-1.5 rounded-xl text-center bg-slate-800/80 hover:bg-slate-700/80 border border-slate-600/60 text-slate-200 transition">
+            <div class="text-xs font-bold">均衡巡航模式</div>
+            <div class="text-[10px] font-mono text-cyan-300/90 mt-0.5">1:2.5 中速爬坡</div>
+          </button>
+          <button data-scenario="speed" class="scenario-btn py-2 px-1.5 rounded-xl text-center bg-slate-800/80 hover:bg-slate-700/80 border border-slate-600/60 text-slate-200 transition">
+            <div class="text-xs font-bold">平路高速模式</div>
+            <div class="text-[10px] font-mono text-sky-300/90 mt-0.5">2:1 加速減扭</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. 即時物理參數滑桿 -->
+      <div class="hud-glass rounded-2xl p-3 space-y-3">
+        <div class="text-xs font-bold text-cyan-400 flex items-center gap-1.5">
+          <span class="w-1.5 h-3.5 bg-cyan-400 rounded-full"></span>
+          即時動力與齒輪參數
+        </div>
+
+        <!-- 馬達輸入電壓 / 功率 (0V ~ 24V) -->
+        <div>
+          <div class="flex justify-between items-center text-xs mb-1">
+            <label for="sliderVoltage" class="text-slate-300 font-medium">馬達輸入電壓 / 功率</label>
+            <span class="font-mono font-bold text-cyan-300 bg-cyan-950/90 px-2 py-0.5 rounded border border-cyan-500/30">
+              <span id="valVoltage">20.0</span> V (<span id="valPowerW">585</span> W)
+            </span>
+          </div>
+          <input id="sliderVoltage" type="range" min="0" max="24" step="0.5" value="20" class="w-full" />
+        </div>
+
+        <!-- 主動小齒輪齒數 Z1 -->
+        <div class="pt-1.5 border-t border-slate-800/80">
+          <div class="flex justify-between items-center text-xs mb-1">
+            <label for="sliderZ1" class="text-slate-300 font-medium">主動齒輪齒數 Z₁ (金色)</label>
+            <span class="font-mono font-bold text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-500/30">
+              <span id="valZ1">12</span> 齒
+            </span>
+          </div>
+          <input id="sliderZ1" type="range" min="10" max="30" step="1" value="12" class="w-full gold-slider" />
+        </div>
+
+        <!-- 從動大齒輪齒數 Z2 -->
+        <div>
+          <div class="flex justify-between items-center text-xs mb-1">
+            <label for="sliderZ2" class="text-slate-300 font-medium">從動齒輪齒數 Z₂ (青鋼色)</label>
+            <span class="font-mono font-bold text-sky-300 bg-sky-950/80 px-2 py-0.5 rounded border border-sky-500/30">
+              <span id="valZ2">48</span> 齒
+            </span>
+          </div>
+          <input id="sliderZ2" type="range" min="15" max="60" step="1" value="48" class="w-full cyan-slider" />
+        </div>
+
+        <!-- 外部負載 / 爬坡坡度 -->
+        <div class="pt-1.5 border-t border-slate-800/80">
+          <div class="flex justify-between items-center text-xs mb-1">
+            <label for="sliderSlope" class="text-slate-300 font-medium">外部負載 / 爬坡坡度</label>
+            <span class="font-mono font-bold text-orange-300 bg-orange-950/80 px-2 py-0.5 rounded border border-orange-500/30">
+              <span id="valSlope">18.0</span>° (<span id="valResistN">40.9</span> N)
+            </span>
+          </div>
+          <input id="sliderSlope" type="range" min="0" max="25" step="0.5" value="18" class="w-full orange-slider" />
+        </div>
+      </div>
+
+      <!-- 4. FWD vs RWD 結構與動態原理解析卡片 -->
+      <div class="hud-glass rounded-2xl p-3">
+        <button id="toggleTheoryBtn" class="w-full flex items-center justify-between text-xs font-bold text-emerald-400">
+          <span>📘 FWD vs RWD 結構與動態解析</span>
+          <span id="theoryArrow" class="text-slate-400">▼</span>
+        </button>
+        <div id="theoryBody" class="mt-2 pt-2 border-t border-slate-800 space-y-2 text-[11.5px] leading-relaxed text-slate-300">
+          <div>
+            <span class="text-amber-300 font-bold">● 後輪驅動 (RWD)：</span>
+            前置縱向馬達經變速箱、長傳動軸與後軸 90° 差速器驅動後輪（效率約 89%）。爬陡坡時車身重心後移，後輪下壓力增加、抓地力更強！
+          </div>
+          <div>
+            <span class="text-cyan-300 font-bold">● 前輪驅動 (FWD)：</span>
+            前置橫向馬達直接整合於前軸一體式變速差速箱（Transaxle）並透過等速萬向接頭驅動前輪，省去中央傳動軸（效率高達 94%），但爬陡坡時前輪下壓力減輕，大扭力易發生打滑。
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- 右側可收合三階段即時物理遙測儀表板 -->
+  <aside id="rightPanel" class="fixed top-20 right-3 w-[315px] sm:w-[345px] max-h-[calc(100vh-92px)] z-20 flex flex-col gap-2.5 pointer-events-none">
+    <!-- 右側收合標頭 -->
+    <div class="flex items-center justify-between hud-glass rounded-xl px-3 py-2 pointer-events-auto">
+      <span class="text-xs font-bold tracking-wider text-emerald-400 flex items-center gap-2">
+        <span id="telemetryLiveDot" class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+        三階段即時物理遙測 HUD
+      </span>
+      <button id="toggleRightPanel" class="text-xs text-slate-300 hover:text-white px-2 py-0.5 rounded bg-slate-800/80 border border-slate-600/50 transition">
+        收合 ▲
+      </button>
+    </div>
+
+    <!-- 右側內容 -->
+    <div id="rightPanelBody" class="overflow-y-auto hud-scroll flex flex-col gap-2.5 pr-0.5 pointer-events-auto">
+
+      <!-- 階段一：前置直流馬達 -->
+      <div class="hud-glass rounded-2xl p-3">
+        <div class="flex items-center justify-between mb-1.5">
+          <span id="stage1Title" class="text-xs font-bold text-cyan-300">階段一：前置縱向直流馬達</span>
+          <span class="text-[10px] font-mono text-slate-400">動力輸入端</span>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5 text-center">
+          <div class="bg-slate-950/75 rounded-xl p-2 border border-slate-800">
+            <div class="text-[10px] text-slate-400">輸入電壓</div>
+            <div class="font-mono text-xs sm:text-sm font-bold text-cyan-300 mt-0.5"><span id="teleVoltage">20.0</span> V</div>
+          </div>
+          <div class="bg-slate-950/75 rounded-xl p-2 border border-slate-800">
+            <div class="text-[10px] text-slate-400">轉子轉速</div>
+            <div class="font-mono text-xs sm:text-sm font-bold text-white mt-0.5"><span id="teleMotorRpm">2480</span></div>
+            <div class="text-[9px] text-slate-500 font-mono">RPM</div>
+          </div>
+          <div class="bg-slate-950/75 rounded-xl p-2 border border-slate-800">
+            <div class="text-[10px] text-slate-400">馬達扭力</div>
+            <div class="font-mono text-xs sm:text-sm font-bold text-sky-300 mt-0.5"><span id="teleMotorTorque">3.00</span></div>
+            <div class="text-[9px] text-slate-500 font-mono">N·m</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 階段二：變速齒輪組 / Transaxle -->
+      <div class="hud-glass rounded-2xl p-3">
+        <div class="flex items-center justify-between mb-1.5">
+          <span id="stage2Title" class="text-xs font-bold text-amber-300">階段二：縱置變速箱齒輪組</span>
+          <span id="modeBadge" class="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/50">
+            減速增扭
+          </span>
+        </div>
+        <div class="grid grid-cols-3 gap-1.5 text-center">
+          <div class="bg-slate-950/75 rounded-xl p-2 border border-slate-800">
+            <div class="text-[10px] text-slate-400">齒輪齒數比</div>
+            <div class="font-mono text-xs sm:text-sm font-bold text-white mt-0.5" id="teleTeethRatio">1 : 4.00</div>
+          </div>
+          <div class="bg-slate-950/75 rounded-xl p-2 border border-slate-800">
+            <div class="text-[10px] text-slate-400">轉速變化率</div>
+            <div class="font-mono text-xs sm:text-sm font-bold text-cyan-300 mt-0.5"><span id="teleSpeedMult">0.25</span>×</div>
+          </div>
+          <div class="bg-slate-950/75 rounded-xl p-2 border border-slate-800">
+            <div class="text-[10px] text-slate-400">變速箱輸出扭力</div>
+            <div class="font-mono text-xs sm:text-sm font-bold text-amber-300 mt-0.5"><span id="teleGearboxTorque">10.68</span></div>
+            <div class="text-[9px] text-slate-500 font-mono">N·m (η=<span id="teleEffPct">89</span>%)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 階段三：驅動輪牽引力、抓地力與車速 -->
+      <div class="hud-glass rounded-2xl p-3 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <span id="stage3Title" class="text-xs font-bold text-emerald-300">階段三：雙後驅動輪與接地牽引</span>
+          <span id="teleDriveStatus" class="text-[11px] font-mono font-bold text-emerald-400">● 後輪推進中</span>
+        </div>
+
+        <div class="grid grid-cols-3 gap-1.5 text-center">
+          <div class="bg-slate-950/75 rounded-xl p-2 border border-slate-800">
+            <div id="teleWheelRpmLabel" class="text-[10px] text-slate-400">後驅動輪轉速</div>
+            <div id="teleWheelRpmBox" class="font-mono text-xs sm:text-sm font-bold text-emerald-300 mt-0.5"><span id="teleWheelRpm">620</span></div>
+            <div class="text-[9px] text-slate-500 font-mono">RPM</div>
+          </div>
+          <div class="bg-slate-950/75 rounded-xl p-2 border border-slate-800">
+            <div class="text-[10px] text-slate-400">有效接地牽引力</div>
+            <div class="font-mono text-xs sm:text-sm font-bold text-orange-300 mt-0.5"><span id="teleTractionN">48.5</span></div>
+            <div class="text-[9px] text-slate-500 font-mono">N (牛頓)</div>
+          </div>
+          <div class="bg-slate-950/75 rounded-xl p-2 border border-slate-800">
+            <div class="text-[10px] text-slate-400">汽車行駛時速</div>
+            <div id="teleSpeedKmhBox" class="font-mono text-xs sm:text-sm font-bold text-white mt-0.5"><span id="teleSpeedKmh">51.4</span></div>
+            <div class="text-[9px] text-slate-500 font-mono">km/h</div>
+          </div>
+        </div>
+
+        <!-- 轉速與扭力即時對比長條圖 -->
+        <div class="bg-slate-950/75 rounded-xl p-2.5 border border-slate-800/90 space-y-2">
+          <div class="text-[11px] font-bold text-slate-300 flex justify-between">
+            <span>輸入 vs 輸出轉速與扭力對比</span>
+            <span class="font-mono text-[10px] text-cyan-300">效率 η = <span id="barEffText">89%</span></span>
+          </div>
+
+          <!-- 轉速對比 -->
+          <div>
+            <div class="flex justify-between text-[10px] font-mono mb-0.5">
+              <span class="text-cyan-300">馬達轉速: <strong id="barTxtMotorRpm">2480</strong> RPM</span>
+              <span class="text-emerald-300">驅動輪: <strong id="barTxtWheelRpm">620</strong> RPM</span>
+            </div>
+            <div class="space-y-1">
+              <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div id="barMotorRpm" class="h-full bg-cyan-400 rounded-full transition-all duration-150" style="width: 68%"></div>
+              </div>
+              <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div id="barWheelRpm" class="h-full bg-emerald-400 rounded-full transition-all duration-150" style="width: 18%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 扭力對比 -->
+          <div class="pt-1 border-t border-slate-800/80">
+            <div class="flex justify-between text-[10px] font-mono mb-0.5">
+              <span class="text-sky-300">馬達扭力: <strong id="barTxtMotorTq">3.00</strong> N·m</span>
+              <span class="text-amber-300">驅動軸扭力: <strong id="barTxtWheelTq">10.68</strong> N·m</span>
+            </div>
+            <div class="space-y-1">
+              <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div id="barMotorTq" class="h-full bg-sky-400 rounded-full transition-all duration-150" style="width: 22%"></div>
+              </div>
+              <div class="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div id="barWheelTq" class="h-full bg-amber-400 rounded-full transition-all duration-150" style="width: 72%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 重心轉移抓地力上限 vs 坡度阻力 -->
+          <div class="pt-1 border-t border-slate-800/80 space-y-0.5 text-[10px] font-mono">
+            <div class="flex justify-between">
+              <span class="text-slate-400" id="teleGripLabel">後輪最大靜摩擦抓地力:</span>
+              <span class="text-cyan-300 font-bold"><span id="teleGripLimitN">57.4</span> N</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-orange-300">坡度+滾動總阻力: <strong id="teleResistBottom">40.9</strong> N</span>
+              <span class="text-emerald-300">實際牽引力: <strong id="teleTractionBottom">48.5</strong> N</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+  <script>
+    /**
+     * ============================================================================
+     * 3D 汽車機械傳動與動力轉換模擬（支援前輪驅動 FWD / 後輪驅動 RWD 即時切換）
+     * - RWD：前置縱向馬達 → 縱置變速箱 → 中央傳動軸(U-joints) → 後軸差速器 → 雙後驅動輪
+     * - FWD：前置橫向馬達 → 前驅一體式變速差速箱 (Transaxle + CV joints) → 雙前驅動輪
+     * ============================================================================
+     */
+
+    // --------------------------------------------------------------------------
+    // 1. 系統模擬狀態與物理常數 (State)
+    // --------------------------------------------------------------------------
+    const state = {
+      driveMode: 'RWD',     // 'RWD' (後輪驅動) 或 'FWD' (前輪驅動)
+      isPlaying: true,
+      slowMo: false,
+      showCarShell: true,
+      showVectorsAndFlux: true,
+      showLabels: true,
+
+      // 可調物理參數 (預設：爬坡重載模式 1:4)
+      voltage: 20.0,        // 馬達輸入電壓 (0V ~ 24V)
+      z1: 12,               // 主動齒輪齒數 (10 ~ 30)
+      z2: 48,               // 從動齒輪齒數 (15 ~ 60)
+      slopeDeg: 18.0,       // 外部負載 / 爬坡坡度 (0° ~ 25°)
+
+      // 車輛與機械幾何常數
+      gearModule: 0.048,    // 齒輪模數 m
+      axleY: 1.45,          // 後軸 / 前軸 / 傳動軸中心高度
+      frontAxleX: 4.15,     // 前輪軸 X 座標 (+X 為車頭前方)
+      rearAxleX: -4.15,     // 後輪軸 X 座標 (-X 為車尾後方)
+      gearboxX: 1.35,       // RWD 縱置變速箱齒輪組 X 座標
+      motorCenterX: 3.55,   // RWD 前置縱向馬達中心 X 座標
+      wheelTrackHalfZ: 2.75,// 左右輪距半寬 (±2.75)
+      wheelVisualR: 1.45,   // 3D 輪胎半徑
+      wheelPhysR: 0.22,     // 物理計算用輪胎半徑 (0.22 m)
+      carMassKg: 12.0,      // 模型車總質量 (12 kg)
+      cgHeightRatio: 0.38,  // 重心高度與軸距比值 (h_cg / L)
+      tireMu: 0.85,         // 輪胎與瀝青路面靜摩擦係數 μ
+
+      // 動態角度與運動累積量
+      motorAngle: 0,        // 馬達與主動齒輪 Z1 旋轉角度 (rad)
+      drivenWheelAngle: 0,  // 驅動輪旋轉角度（含 FWD 打滑空轉增量）
+      passiveWheelAngle: 0, // 從動輪隨車速滾動角度 (rad)
+      roadScroll: 0,        // 路面紋理捲動位移
+      fluxTime: 0,          // 磁場粒子流動時間
+      stallJitterTime: 0,   // 失速震動相位
+      currentSlopeRad: (18.0 * Math.PI) / 180,
+
+      // 相機平滑過渡目標
+      cameraLerpActive: false,
+      targetCamPos: new THREE.Vector3(6.8, 11.2, 13.8),
+      targetControlsCenter: new THREE.Vector3(0.0, 2.0, 0.0)
+    };
+
+    // --------------------------------------------------------------------------
+    // 2. Three.js 核心場景、相機、渲染器與控制器初始化
+    // --------------------------------------------------------------------------
+    const container = document.getElementById('webglContainer');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x050a14);
+    scene.fog = new THREE.FogExp2(0x050a14, 0.013);
+
+    const camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 220);
+    camera.position.copy(state.targetCamPos);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.target.copy(state.targetControlsCenter);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.minDistance = 2.5;
+    controls.maxDistance = 42;
+    controls.maxPolarAngle = Math.PI * 0.49;
+    controls.addEventListener('start', () => {
+      state.cameraLerpActive = false;
+    });
+
+    // 可隨坡度角整體傾斜的世界群組與汽車根群組
+    const slopeWorldGroup = new THREE.Group();
+    scene.add(slopeWorldGroup);
+
+    const carRootGroup = new THREE.Group();
+    slopeWorldGroup.add(carRootGroup);
+
+    // --------------------------------------------------------------------------
+    // 3. 3D 工程展示棚燈光與空間背景環境
+    // --------------------------------------------------------------------------
+    function setupLightsAndEnvironment() {
+      // 天空與地面半球環境光
+      const hemiLight = new THREE.HemisphereLight(0x7dd3fc, 0x0f172a, 0.8);
+      hemiLight.position.set(0, 30, 0);
+      scene.add(hemiLight);
+
+      // 主方向光（投射柔和陰影）
+      const dirLight = new THREE.DirectionalLight(0xffffff, 1.35);
+      dirLight.position.set(14, 24, 16);
+      dirLight.castShadow = true;
+      dirLight.shadow.mapSize.width = 2048;
+      dirLight.shadow.mapSize.height = 2048;
+      dirLight.shadow.camera.near = 2;
+      dirLight.shadow.camera.far = 65;
+      const d = 14;
+      dirLight.shadow.camera.left = -d;
+      dirLight.shadow.camera.right = d;
+      dirLight.shadow.camera.top = d;
+      dirLight.shadow.camera.bottom = -d;
+      dirLight.shadow.bias = -0.0005;
+      scene.add(dirLight);
+
+      // 冷青色背向輪廓補光
+      const rimLight = new THREE.DirectionalLight(0x38bdf8, 0.55);
+      rimLight.position.set(-15, 12, -14);
+      scene.add(rimLight);
+
+      // 傳動機構暖琥珀色局部補光
+      const engineGlowLight = new THREE.PointLight(0xf59e0b, 0.45, 22);
+      engineGlowLight.position.set(2.5, 4.5, 4.5);
+      scene.add(engineGlowLight);
+
+      // 背景科技星塵微粒（營造空間縱深感）
+      const starGeo = new THREE.BufferGeometry();
+      const starCount = 420;
+      const positions = new Float32Array(starCount * 3);
+      for (let i = 0; i < starCount; i++) {
+        positions[i * 3] = (Math.random() - 0.5) * 140;
+        positions[i * 3 + 1] = Math.random() * 55 + 2;
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 140;
+      }
+      starGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      const starMat = new THREE.PointsMaterial({
+        color: 0x38bdf8,
+        size: 0.24,
+        transparent: true,
+        opacity: 0.45
+      });
+      scene.add(new THREE.Points(starGeo, starMat));
+    }
+
+    // --------------------------------------------------------------------------
+    // 4. 動態捲動爬坡道路與路旁速度參考標誌柱
+    // --------------------------------------------------------------------------
+    const roadSystem = {
+      roadTexture: null,
+      posts: [],
+      postSpan: 96
+    };
+
+    function buildDynamicRoad() {
+      // 1. 動態生成瀝青路面與標線 Canvas 貼圖
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+
+      // 瀝青底色
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(0, 0, 512, 256);
+
+      // 細微路面顆粒質感
+      for (let i = 0; i < 2800; i++) {
+        const x = Math.random() * 512;
+        const y = Math.random() * 256;
+        ctx.fillStyle = Math.random() > 0.5 ? 'rgba(148, 163, 184, 0.08)' : 'rgba(2, 6, 23, 0.25)';
+        ctx.fillRect(x, y, 2, 2);
+      }
+
+      // 兩側白線路肩
+      ctx.fillStyle = 'rgba(226, 232, 240, 0.72)';
+      ctx.fillRect(0, 14, 512, 6);
+      ctx.fillRect(0, 236, 512, 6);
+
+      // 中央琥珀色虛線車道標線（用來視覺化車速與前進方向）
+      ctx.fillStyle = '#f59e0b';
+      ctx.fillRect(36, 124, 185, 8);
+      ctx.fillRect(292, 124, 185, 8);
+
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.ClampToEdgeWrapping;
+      tex.repeat.set(14, 1);
+      tex.anisotropy = 8;
+      roadSystem.roadTexture = tex;
+
+      // 2. 路面主體（頂面高度 y = 0，與輪胎最底端精準貼合）
+      const roadGeo = new THREE.BoxGeometry(110, 0.5, 9.6);
+      const roadTopMat = new THREE.MeshStandardMaterial({
+        map: tex,
+        roughness: 0.85,
+        metalness: 0.1
+      });
+      const roadSideMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        roughness: 0.6,
+        metalness: 0.4
+      });
+      const roadMesh = new THREE.Mesh(roadGeo, [
+        roadSideMat,
+        roadSideMat,
+        roadTopMat,
+        roadSideMat,
+        roadSideMat,
+        roadSideMat
+      ]);
+      roadMesh.position.set(0, -0.25, 0);
+      roadMesh.receiveShadow = true;
+      slopeWorldGroup.add(roadMesh);
+
+      // 路面兩側發光導引邊條
+      const railMat = new THREE.MeshBasicMaterial({ color: 0x0284c7 });
+      [-4.82, 4.82].forEach((rz) => {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(110, 0.12, 0.12), railMat);
+        rail.position.set(0, 0.04, rz);
+        slopeWorldGroup.add(rail);
+      });
+
+      // 3. 路旁反光標誌柱（隨車速向後捲動，強化速度與爬坡傾角感知）
+      const postPoleMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.7, roughness: 0.3 });
+      const reflectorMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
+      const postCount = 12;
+      const stepX = roadSystem.postSpan / postCount;
+
+      for (let i = 0; i < postCount; i++) {
+        const px = -roadSystem.postSpan / 2 + i * stepX;
+        [-5.25, 5.25].forEach((pz) => {
+          const postGroup = new THREE.Group();
+          postGroup.position.set(px, 0, pz);
+
+          const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.15, 10), postPoleMat);
+          pole.position.y = 0.575;
+          postGroup.add(pole);
+
+          const cap = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.22, 0.14), reflectorMat);
+          cap.position.y = 1.05;
+          postGroup.add(cap);
+
+          slopeWorldGroup.add(postGroup);
+          roadSystem.posts.push(postGroup);
+        });
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 5. 汽車梯形底盤大樑、前後懸吊與轉向連桿機構（共用於 RWD 與 FWD）
+    // --------------------------------------------------------------------------
+    const chassisSystem = {
+      motorMountGroup: new THREE.Group()
+    };
+
+    function buildCarChassis() {
+      const steelMat = new THREE.MeshStandardMaterial({
+        color: 0x334155,
+        metalness: 0.82,
+        roughness: 0.28
+      });
+      const darkAlloyMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b,
+        metalness: 0.75,
+        roughness: 0.35
+      });
+      const springMat = new THREE.MeshStandardMaterial({
+        color: 0xf59e0b,
+        metalness: 0.6,
+        roughness: 0.3
+      });
+
+      // 1. 梯形底盤雙縱樑 (Ladder Frame Left & Right Rails: X = -5.5 到 +5.5, Z = ±1.35)
+      [-1.35, 1.35].forEach((rz) => {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(11.2, 0.26, 0.22), steelMat);
+        rail.position.set(0, 1.55, rz);
+        rail.castShadow = true;
+        rail.receiveShadow = true;
+        carRootGroup.add(rail);
+      });
+
+      // 4 根底盤橫樑 (Crossmembers)
+      [-5.3, -2.2, 2.2, 5.3].forEach((cx) => {
+        const cross = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 2.92), darkAlloyMat);
+        cross.position.set(cx, 1.55, 0);
+        cross.castShadow = true;
+        carRootGroup.add(cross);
+      });
+
+      // 前後保險桿防撞樑
+      const frontBumper = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.34, 4.4), steelMat);
+      frontBumper.position.set(5.65, 1.5, 0);
+      carRootGroup.add(frontBumper);
+
+      const rearBumper = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.34, 4.4), steelMat);
+      rearBumper.position.set(-5.65, 1.5, 0);
+      carRootGroup.add(rearBumper);
+
+      // 2. 前懸吊支臂 + 前輪轉向連桿機構 (Front Steering Rack & Tie-Rods at X = +4.15)
+      const steeringRack = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.08, 0.08, 4.8, 14),
+        new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.2 })
+      );
+      steeringRack.rotation.x = Math.PI / 2;
+      steeringRack.position.set(state.frontAxleX + 0.38, state.axleY - 0.12, 0);
+      carRootGroup.add(steeringRack);
+
+      // 轉向機中央齒條盒
+      const rackBox = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.28, 1.1), darkAlloyMat);
+      rackBox.position.set(state.frontAxleX + 0.38, state.axleY - 0.12, 0);
+      carRootGroup.add(rackBox);
+
+      // 左右前輪轉向節臂與上下A臂懸吊
+      [-1, 1].forEach((side) => {
+        const zSign = side;
+        // 轉向拉桿連接前輪羊角
+        const knuckle = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.45, 0.28), darkAlloyMat);
+        knuckle.position.set(state.frontAxleX, state.axleY, zSign * (state.wheelTrackHalfZ - 0.55));
+        carRootGroup.add(knuckle);
+
+        // 懸吊避震彈簧支柱
+        const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.95, 12), springMat);
+        strut.position.set(state.frontAxleX, state.axleY + 0.42, zSign * 1.85);
+        strut.rotation.x = zSign * 0.35;
+        carRootGroup.add(strut);
+
+        // 下控制臂
+        const wishbone = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.1, 1.15), steelMat);
+        wishbone.position.set(state.frontAxleX, state.axleY - 0.15, zSign * 1.85);
+        carRootGroup.add(wishbone);
+      });
+
+      // 3. 後懸吊減震支柱與後軸套管支架 (Rear Axle Housing Tubes at X = -4.15)
+      [-1, 1].forEach((side) => {
+        const zSign = side;
+        const rearStrut = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.95, 12), springMat);
+        rearStrut.position.set(state.rearAxleX, state.axleY + 0.45, zSign * 1.9);
+        rearStrut.rotation.x = zSign * 0.3;
+        carRootGroup.add(rearStrut);
+
+        const trailingArm = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.12, 0.16), steelMat);
+        trailingArm.position.set(state.rearAxleX + 0.65, state.axleY - 0.1, zSign * 1.85);
+        carRootGroup.add(trailingArm);
+      });
+
+      // 4. 前置馬達可升降支撐架（隨 Z1/Z2 中心距變化自動貼合）
+      carRootGroup.add(chassisSystem.motorMountGroup);
+    }
+
+    // RWD 與 FWD 獨立傳動群組（切換模式時即時切換可見度）
+    const rwdRootGroup = new THREE.Group();
+    const fwdRootGroup = new THREE.Group();
+
+    // --------------------------------------------------------------------------
+    // 6. 階段一：前置直流馬達總成（RWD 縱向馬達 + FWD 橫向馬達）
+    // --------------------------------------------------------------------------
+    const motorSystem = {
+      rootGroup: new THREE.Group(),
+      rotorGroup: new THREE.Group(),
+      fluxGroup: new THREE.Group(),
+      fluxParticles: [],
+      fluxRings: []
+    };
+
+    const fwdMotorSystem = {
+      rootGroup: new THREE.Group(),
+      rotorGroup: new THREE.Group(),
+      fluxGroup: new THREE.Group(),
+      fluxParticles: [],
+      fluxRings: []
+    };
+
+    /**
+     * 輔助工廠：建立可指定旋轉軸 ('X' 為縱置 RWD，'Z' 為橫置 FWD) 的透明外殼直流馬達
+     */
+    function populateDcMotorAssembly(sys, axisMode, motorLen, shaftOffset, shaftLen) {
+      const outerR = 0.92;
+      const shellMat = new THREE.MeshPhysicalMaterial({
+        color: 0x64748b,
+        metalness: 0.72,
+        roughness: 0.22,
+        transparent: true,
+        opacity: 0.25,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+
+      const shellGeo = new THREE.CylinderGeometry(outerR, outerR, motorLen, 36, 1, true);
+      if (axisMode === 'X') shellGeo.rotateZ(Math.PI / 2);
+      else shellGeo.rotateX(Math.PI / 2);
+      sys.rootGroup.add(new THREE.Mesh(shellGeo, shellMat));
+
+      // 散熱鰭片環
+      for (let i = 0; i < 5; i++) {
+        const pos = -motorLen * 0.38 + (i / 4) * (motorLen * 0.76);
+        const fin = new THREE.Mesh(new THREE.TorusGeometry(outerR + 0.04, 0.026, 8, 32), shellMat);
+        if (axisMode === 'X') {
+          fin.rotation.y = Math.PI / 2;
+          fin.position.x = pos;
+        } else {
+          fin.position.z = pos;
+        }
+        sys.rootGroup.add(fin);
+      }
+
+      // 兩端端蓋金屬環
+      const capMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.85, roughness: 0.25 });
+      [-motorLen / 2, motorLen / 2].forEach((cPos) => {
+        const capRing = new THREE.Mesh(new THREE.TorusGeometry(outerR - 0.03, 0.065, 10, 32), capMat);
+        if (axisMode === 'X') {
+          capRing.rotation.y = Math.PI / 2;
+          capRing.position.x = cPos;
+        } else {
+          capRing.position.z = cPos;
+        }
+        sys.rootGroup.add(capRing);
+      });
+
+      // 電源接線盒與紅(+)/藍(-)高壓電線
+      const termBox = new THREE.Mesh(
+        new THREE.BoxGeometry(0.42, 0.32, 0.44),
+        new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.5 })
+      );
+      termBox.position.set(0, outerR + 0.14, 0);
+      sys.rootGroup.add(termBox);
+
+      const redLead = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.032, 0.032, 0.75, 8),
+        new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0x991b1b })
+      );
+      const blueLead = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.032, 0.032, 0.75, 8),
+        new THREE.MeshStandardMaterial({ color: 0x3b82f6, emissive: 0x1e40af })
+      );
+      if (axisMode === 'X') {
+        redLead.rotation.z = Math.PI / 2;
+        blueLead.rotation.z = Math.PI / 2;
+        redLead.position.set(0.45, outerR + 0.2, 0.11);
+        blueLead.position.set(0.45, outerR + 0.2, -0.11);
+      } else {
+        redLead.rotation.x = Math.PI / 2;
+        blueLead.rotation.x = Math.PI / 2;
+        redLead.position.set(0.11, outerR + 0.2, 0.45);
+        blueLead.position.set(-0.11, outerR + 0.2, 0.45);
+      }
+      sys.rootGroup.add(redLead, blueLead);
+
+      // 定子永久磁極：上方 N 極（紅色）、下方 S 極（藍色）
+      function createMotorMagnet(startAng, endAng, colHex, emHex) {
+        const magOuterR = 0.85;
+        const magInnerR = 0.65;
+        const magLen = motorLen * 0.76;
+        const shape = new THREE.Shape();
+        shape.absarc(0, 0, magOuterR, startAng, endAng, false);
+        shape.absarc(0, 0, magInnerR, endAng, startAng, true);
+        shape.closePath();
+
+        const geo = new THREE.ExtrudeGeometry(shape, {
+          depth: magLen,
+          bevelEnabled: true,
+          bevelThickness: 0.015,
+          bevelSize: 0.015,
+          bevelSegments: 2,
+          curveSegments: 20
+        });
+        geo.translate(0, 0, -magLen / 2);
+        if (axisMode === 'X') geo.rotateY(Math.PI / 2);
+
+        return new THREE.Mesh(
+          geo,
+          new THREE.MeshStandardMaterial({
+            color: colHex,
+            emissive: emHex,
+            emissiveIntensity: 0.35,
+            metalness: 0.35,
+            roughness: 0.35
+          })
+        );
+      }
+
+      sys.rootGroup.add(createMotorMagnet(Math.PI * 0.18, Math.PI * 0.82, 0xdc2626, 0x991b1b));
+      sys.rootGroup.add(createMotorMagnet(-Math.PI * 0.82, -Math.PI * 0.18, 0x2563eb, 0x1d4ed8));
+
+      // 磁力線光環與動態流動磁場粒子
+      sys.rootGroup.add(sys.fluxGroup);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.45 });
+      [-0.42, 0, 0.42].forEach((offset) => {
+        const fRing = new THREE.Mesh(new THREE.TorusGeometry(0.60, 0.014, 8, 32), ringMat.clone());
+        if (axisMode === 'X') {
+          fRing.rotation.y = Math.PI / 2;
+          fRing.position.x = offset;
+        } else {
+          fRing.position.z = offset;
+        }
+        sys.fluxGroup.add(fRing);
+        sys.fluxRings.push(fRing);
+      });
+
+      const pGeo = new THREE.SphereGeometry(0.035, 8, 8);
+      const pMat = new THREE.MeshBasicMaterial({ color: 0x7dd3fc });
+      for (let i = 0; i < 18; i++) {
+        const p = new THREE.Mesh(pGeo, pMat);
+        p.userData = {
+          angle: (i / 18) * Math.PI * 2,
+          axisOffset: ((i % 3) - 1) * 0.42,
+          radius: 0.58,
+          axisMode
+        };
+        sys.fluxGroup.add(p);
+        sys.fluxParticles.push(p);
+      }
+
+      // 高速旋轉銅線圈轉子與鋼製輸入軸
+      sys.rootGroup.add(sys.rotorGroup);
+      const coreMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.85, roughness: 0.25 });
+      const copperMat = new THREE.MeshStandardMaterial({
+        color: 0xd97706,
+        emissive: 0x78350f,
+        emissiveIntensity: 0.3,
+        metalness: 0.82,
+        roughness: 0.22
+      });
+
+      for (let p = 0; p < 3; p++) {
+        const arm = new THREE.Group();
+        if (axisMode === 'X') arm.rotation.x = (p * Math.PI * 2) / 3;
+        else arm.rotation.z = (p * Math.PI * 2) / 3;
+
+        const pole = new THREE.Mesh(
+          axisMode === 'X'
+            ? new THREE.BoxGeometry(motorLen * 0.70, 0.50, 0.15)
+            : new THREE.BoxGeometry(0.15, 0.50, motorLen * 0.70),
+          coreMat
+        );
+        pole.position.y = 0.26;
+        arm.add(pole);
+
+        const coil = new THREE.Mesh(
+          axisMode === 'X'
+            ? new THREE.BoxGeometry(motorLen * 0.64, 0.30, 0.30)
+            : new THREE.BoxGeometry(0.30, 0.30, motorLen * 0.64),
+          copperMat
+        );
+        coil.position.y = 0.30;
+        arm.add(coil);
+
+        sys.rotorGroup.add(arm);
+      }
+
+      const motorShaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.11, 0.11, shaftLen, 18),
+        new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.92, roughness: 0.16 })
+      );
+      if (axisMode === 'X') {
+        motorShaft.rotation.z = Math.PI / 2;
+        motorShaft.position.x = shaftOffset;
+      } else {
+        motorShaft.rotation.x = Math.PI / 2;
+        motorShaft.position.z = shaftOffset;
+      }
+      motorShaft.castShadow = true;
+      sys.rotorGroup.add(motorShaft);
+    }
+
+    function buildFrontMotors() {
+      carRootGroup.add(rwdRootGroup);
+      carRootGroup.add(fwdRootGroup);
+      fwdRootGroup.visible = false;
+
+      // 1. RWD 前置縱向馬達 (沿 X 軸擺放於 X = +3.55)
+      motorSystem.rootGroup.position.set(state.motorCenterX, 2.85, 0);
+      rwdRootGroup.add(motorSystem.rootGroup);
+      populateDcMotorAssembly(motorSystem, 'X', 2.15, -1.1, 2.65);
+
+      // 2. FWD 前置橫向馬達 (沿 Z 軸橫置於前軸上方 X = +4.15, Z = +1.18，軸心伸入中央 Z = 0 一體箱)
+      fwdMotorSystem.rootGroup.position.set(state.frontAxleX, 2.85, 1.18);
+      fwdRootGroup.add(fwdMotorSystem.rootGroup);
+      populateDcMotorAssembly(fwdMotorSystem, 'Z', 1.65, -0.68, 1.55);
+    }
+
+    // --------------------------------------------------------------------------
+    // 7. 階段二：動態漸開線 3D 齒輪組（RWD 縱置變速箱 & FWD 前驅一體箱 Transaxle）
+    // --------------------------------------------------------------------------
+    const gearboxSystem = {
+      casingGroup: new THREE.Group(),
+      gear1Group: new THREE.Group(),
+      gear2Group: new THREE.Group(),
+      contactGlow: null
+    };
+
+    const fwdTransaxleSystem = {
+      casingGroup: new THREE.Group(),
+      gear1Group: new THREE.Group(),
+      gear2Group: new THREE.Group(),
+      diffCarrierGroup: new THREE.Group(),
+      contactGlow: null
+    };
+
+    /**
+     * 使用 Three.js ExtrudeGeometry 動態生成漸開線近似齒形 3D 齒輪
+     * @param {string} planeMode 'YZ' (RWD 繞 X 軸旋轉) 或 'XY' (FWD 橫置繞 Z 軸旋轉)
+     */
+    function createProceduralSpurGear(teeth, mod, mainColorHex, stripeColorHex, planeMode = 'YZ') {
+      const group = new THREE.Group();
+      const pitchR = (mod * teeth) / 2;
+      const addendum = mod * 0.92;
+      const dedendum = mod * 1.12;
+      const outerR = pitchR + addendum;
+      const rootR = Math.max(0.14, pitchR - dedendum);
+      const thick = 0.34;
+
+      const shape = new THREE.Shape();
+      const step = (Math.PI * 2) / teeth;
+
+      for (let i = 0; i < teeth; i++) {
+        const aCenter = i * step;
+        const aRoot1 = aCenter - step * 0.36;
+        const aFlank1 = aCenter - step * 0.22;
+        const aTip1 = aCenter - step * 0.13;
+        const aTip2 = aCenter + step * 0.13;
+        const aFlank2 = aCenter + step * 0.22;
+        const aRoot2 = aCenter + step * 0.36;
+
+        const p0x = Math.cos(aRoot1) * rootR;
+        const p0y = Math.sin(aRoot1) * rootR;
+        if (i === 0) shape.moveTo(p0x, p0y);
+        else shape.lineTo(p0x, p0y);
+
+        shape.lineTo(Math.cos(aFlank1) * pitchR, Math.sin(aFlank1) * pitchR);
+        shape.lineTo(Math.cos(aTip1) * outerR, Math.sin(aTip1) * outerR);
+        shape.lineTo(Math.cos(aTip2) * outerR, Math.sin(aTip2) * outerR);
+        shape.lineTo(Math.cos(aFlank2) * pitchR, Math.sin(aFlank2) * pitchR);
+        shape.lineTo(Math.cos(aRoot2) * rootR, Math.sin(aRoot2) * rootR);
+      }
+      shape.closePath();
+
+      // 中心軸孔
+      const boreR = Math.min(rootR * 0.28, 0.12);
+      const boreHole = new THREE.Path();
+      boreHole.absarc(0, 0, boreR, 0, Math.PI * 2, true);
+      shape.holes.push(boreHole);
+
+      const geo = new THREE.ExtrudeGeometry(shape, {
+        depth: thick,
+        bevelEnabled: true,
+        bevelThickness: 0.018,
+        bevelSize: 0.015,
+        bevelSegments: 2
+      });
+      geo.translate(0, 0, -thick / 2);
+
+      const mat = new THREE.MeshStandardMaterial({
+        color: mainColorHex,
+        metalness: 0.78,
+        roughness: 0.24
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      group.add(mesh);
+
+      // 中心輪轂
+      const hubR = Math.min(rootR * 0.46, 0.28);
+      const hub = new THREE.Mesh(
+        new THREE.CylinderGeometry(hubR, hubR, thick + 0.14, 20),
+        mat
+      );
+      hub.rotation.x = Math.PI / 2;
+      group.add(hub);
+
+      // 高對比徑向旋轉指示條
+      const sLen = Math.max(0.15, rootR * 0.82);
+      const stripe = new THREE.Mesh(
+        new THREE.BoxGeometry(sLen, 0.055, thick + 0.06),
+        new THREE.MeshBasicMaterial({ color: stripeColorHex })
+      );
+      stripe.position.x = sLen * 0.48;
+      group.add(stripe);
+
+      // RWD 齒輪面旋轉至 YZ 平面（繞 X 軸）；FWD 橫置齒輪保持在 XY 平面（繞 Z 軸）
+      if (planeMode === 'YZ') {
+        group.rotation.y = Math.PI / 2;
+      }
+      return group;
+    }
+
+    function initGearboxes() {
+      // RWD 縱置變速箱
+      rwdRootGroup.add(gearboxSystem.casingGroup);
+      rwdRootGroup.add(gearboxSystem.gear1Group);
+      rwdRootGroup.add(gearboxSystem.gear2Group);
+
+      const rwdGlow = new THREE.Mesh(
+        new THREE.SphereGeometry(0.09, 14, 14),
+        new THREE.MeshBasicMaterial({ color: 0xfef08a, transparent: true, opacity: 0.92 })
+      );
+      gearboxSystem.contactGlow = rwdGlow;
+      rwdRootGroup.add(rwdGlow);
+
+      // FWD 前驅一體式變速差速箱 (Transaxle)
+      fwdRootGroup.add(fwdTransaxleSystem.casingGroup);
+      fwdRootGroup.add(fwdTransaxleSystem.gear1Group);
+      fwdRootGroup.add(fwdTransaxleSystem.gear2Group);
+      fwdRootGroup.add(fwdTransaxleSystem.diffCarrierGroup);
+
+      const fwdGlow = new THREE.Mesh(
+        new THREE.SphereGeometry(0.09, 14, 14),
+        new THREE.MeshBasicMaterial({ color: 0xfef08a, transparent: true, opacity: 0.92 })
+      );
+      fwdTransaxleSystem.contactGlow = fwdGlow;
+      fwdRootGroup.add(fwdGlow);
+
+      rebuildGearboxAndMotorHeight();
+    }
+
+    /**
+     * 當 Z1 或 Z2 齒數改變時，同步重算並重繪 RWD 縱置變速箱與 FWD 前驅一體箱
+     */
+    function rebuildGearboxAndMotorHeight() {
+      // 清空 RWD 變速箱
+      while (gearboxSystem.gear1Group.children.length > 0) gearboxSystem.gear1Group.remove(gearboxSystem.gear1Group.children[0]);
+      while (gearboxSystem.gear2Group.children.length > 0) gearboxSystem.gear2Group.remove(gearboxSystem.gear2Group.children[0]);
+      while (gearboxSystem.casingGroup.children.length > 0) gearboxSystem.casingGroup.remove(gearboxSystem.casingGroup.children[0]);
+
+      // 清空 FWD 一體箱
+      while (fwdTransaxleSystem.gear1Group.children.length > 0) fwdTransaxleSystem.gear1Group.remove(fwdTransaxleSystem.gear1Group.children[0]);
+      while (fwdTransaxleSystem.gear2Group.children.length > 0) fwdTransaxleSystem.gear2Group.remove(fwdTransaxleSystem.gear2Group.children[0]);
+      while (fwdTransaxleSystem.casingGroup.children.length > 0) fwdTransaxleSystem.casingGroup.remove(fwdTransaxleSystem.casingGroup.children[0]);
+
+      // 清空馬達支架
+      while (chassisSystem.motorMountGroup.children.length > 0) chassisSystem.motorMountGroup.remove(chassisSystem.motorMountGroup.children[0]);
+
+      const r1 = (state.gearModule * state.z1) / 2;
+      const r2 = (state.gearModule * state.z2) / 2;
+      const y2 = state.axleY;
+      const y1 = y2 + r1 + r2;
+
+      // -------------------- (A) 更新 RWD 縱置變速箱與縱向馬達 --------------------
+      const rwdG1 = createProceduralSpurGear(state.z1, state.gearModule, 0xf59e0b, 0xffffff, 'YZ');
+      gearboxSystem.gear1Group.add(rwdG1);
+      gearboxSystem.gear1Group.position.set(state.gearboxX, y1, 0);
+
+      const rwdG2 = createProceduralSpurGear(state.z2, state.gearModule, 0x0ea5e9, 0xfef08a, 'YZ');
+      gearboxSystem.gear2Group.add(rwdG2);
+      gearboxSystem.gear2Group.position.set(state.gearboxX, y2, 0);
+
+      gearboxSystem.contactGlow.position.set(state.gearboxX, y2 + r2, 0);
+      motorSystem.rootGroup.position.y = y1;
+
+      const maxOuterR = Math.max(r1, r2) + state.gearModule * 1.3;
+      const rwdBoxGeo = new THREE.BoxGeometry(0.85, (r1 + r2) * 2 + state.gearModule * 2.8, maxOuterR * 2 + 0.35);
+      const rwdBoxMat = new THREE.MeshPhysicalMaterial({
+        color: 0x38bdf8,
+        transparent: true,
+        opacity: 0.14,
+        roughness: 0.15,
+        metalness: 0.1,
+        depthWrite: false
+      });
+      const rwdBoxMesh = new THREE.Mesh(rwdBoxGeo, rwdBoxMat);
+      rwdBoxMesh.position.set(state.gearboxX, (y1 + y2) / 2, 0);
+      gearboxSystem.casingGroup.add(rwdBoxMesh);
+
+      const rwdWire = new THREE.LineSegments(
+        new THREE.EdgesGeometry(rwdBoxGeo),
+        new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.55 })
+      );
+      rwdWire.position.copy(rwdBoxMesh.position);
+      gearboxSystem.casingGroup.add(rwdWire);
+
+      // -------------------- (B) 更新 FWD 前驅一體式變速差速箱 (Transaxle) --------------------
+      const fwdG1 = createProceduralSpurGear(state.z1, state.gearModule, 0xf59e0b, 0xffffff, 'XY');
+      fwdTransaxleSystem.gear1Group.add(fwdG1);
+      fwdTransaxleSystem.gear1Group.position.set(state.frontAxleX, y1, 0);
+
+      const fwdG2 = createProceduralSpurGear(state.z2, state.gearModule, 0x0ea5e9, 0xfef08a, 'XY');
+      fwdTransaxleSystem.gear2Group.add(fwdG2);
+      fwdTransaxleSystem.gear2Group.position.set(state.frontAxleX, y2, 0);
+
+      fwdTransaxleSystem.contactGlow.position.set(state.frontAxleX, y2 + r2, 0);
+      fwdMotorSystem.rootGroup.position.y = y1;
+
+      // 一體式變速差速箱玻璃外殼（包覆 Z1/Z2 齒輪與前軸差速器）
+      const transW = maxOuterR * 2 + 0.38;
+      const transH = (r1 + r2) * 2 + state.gearModule * 2.8;
+      const transD = 1.25;
+      const transGeo = new THREE.BoxGeometry(transW, transH, transD);
+      const transMat = new THREE.MeshPhysicalMaterial({
+        color: 0x34d399,
+        transparent: true,
+        opacity: 0.15,
+        roughness: 0.15,
+        metalness: 0.1,
+        depthWrite: false
+      });
+      const transMesh = new THREE.Mesh(transGeo, transMat);
+      transMesh.position.set(state.frontAxleX, (y1 + y2) / 2, 0);
+      fwdTransaxleSystem.casingGroup.add(transMesh);
+
+      const transWire = new THREE.LineSegments(
+        new THREE.EdgesGeometry(transGeo),
+        new THREE.LineBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.58 })
+      );
+      transWire.position.copy(transMesh.position);
+      fwdTransaxleSystem.casingGroup.add(transWire);
+
+      // -------------------- (C) 更新當前模式的馬達底座支架 --------------------
+      const standMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.78, roughness: 0.3 });
+      const mountH = Math.max(0.2, y1 - 1.55);
+      const mountBlock = state.driveMode === 'RWD'
+        ? new THREE.Mesh(new THREE.BoxGeometry(1.4, mountH, 1.4), standMat)
+        : new THREE.Mesh(new THREE.BoxGeometry(1.2, mountH, 1.35), standMat);
+      mountBlock.position.set(
+        state.driveMode === 'RWD' ? state.motorCenterX : state.frontAxleX,
+        1.55 + mountH / 2,
+        state.driveMode === 'RWD' ? 0 : 1.18
+      );
+      chassisSystem.motorMountGroup.add(mountBlock);
+    }
+
+    // --------------------------------------------------------------------------
+    // 8. 階段三：RWD 傳動軸/後差速器 vs FWD 前驅半軸/CV等速接頭 + 四輪總成
+    // --------------------------------------------------------------------------
+    const drivetrainSystem = {
+      driveshaftGroup: new THREE.Group(),
+      diffPinionGroup: new THREE.Group(),
+      diffCarrierGroup: new THREE.Group(),
+      leftRearWheelGroup: null,
+      rightRearWheelGroup: null,
+      leftFrontWheelGroup: null,
+      rightFrontWheelGroup: null,
+      tractionVectorsGroup: new THREE.Group(),
+      leftArrowGroup: null,
+      rightArrowGroup: null,
+      leftArrowShaft: null,
+      leftArrowCone: null,
+      rightArrowShaft: null,
+      rightArrowCone: null,
+      frontSlipGlowGroup: new THREE.Group()
+    };
+
+    /**
+     * 建立十字萬向接頭 (Universal Joint / Cardan Joint)
+     */
+    function createUniversalJoint() {
+      const uGroup = new THREE.Group();
+      const yokeMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.2 });
+      const pinMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.85, roughness: 0.25 });
+
+      // 十字中心銷
+      const crossY = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.34, 10), pinMat);
+      const crossZ = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.34, 10), pinMat);
+      crossZ.rotation.x = Math.PI / 2;
+      uGroup.add(crossY, crossZ);
+
+      // 前後 U 型叉耳
+      const yoke1 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.36, 0.12), yokeMat);
+      yoke1.position.x = 0.08;
+      const yoke2 = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.36), yokeMat);
+      yoke2.position.x = -0.08;
+      uGroup.add(yoke1, yoke2);
+
+      return uGroup;
+    }
+
+    /**
+     * 建立高精度 3D 汽車輪胎與 5 輻輪框（回傳包含輪輻與輪轂材質的物件，方便 RWD/FWD 切換染色）
+     */
+    function createCarWheelAssembly(isDriveWheel) {
+      const wheelGroup = new THREE.Group();
+      const R = state.wheelVisualR;
+      const rimR = R * 0.62;
+      const width = 0.82;
+
+      // 橡膠輪胎主體
+      const tireShape = new THREE.Shape();
+      tireShape.absarc(0, 0, R - 0.05, 0, Math.PI * 2, false);
+      const hole = new THREE.Path();
+      hole.absarc(0, 0, rimR - 0.03, 0, Math.PI * 2, true);
+      tireShape.holes.push(hole);
+
+      const tireGeo = new THREE.ExtrudeGeometry(tireShape, {
+        depth: width,
+        bevelEnabled: true,
+        bevelThickness: 0.08,
+        bevelSize: 0.07,
+        bevelSegments: 3,
+        curveSegments: 32
+      });
+      tireGeo.translate(0, 0, -width / 2);
+
+      const rubberMat = new THREE.MeshStandardMaterial({
+        color: 0x161a22,
+        metalness: 0.15,
+        roughness: 0.84
+      });
+      const tireMesh = new THREE.Mesh(tireGeo, rubberMat);
+      tireMesh.castShadow = true;
+      tireMesh.receiveShadow = true;
+      wheelGroup.add(tireMesh);
+
+      // 24 塊 3D 輪胎胎紋塊
+      const treadMat = new THREE.MeshStandardMaterial({ color: 0x262d3a, roughness: 0.8 });
+      for (let t = 0; t < 24; t++) {
+        const a = (t * Math.PI * 2) / 24;
+        const block = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.08, width * 0.85), treadMat);
+        block.position.set(Math.cos(a) * (R - 0.01), Math.sin(a) * (R - 0.01), 0);
+        block.rotation.z = a + Math.PI / 2;
+        wheelGroup.add(block);
+      }
+      // 金屬輪框與 5 輻條（驅動輪用亮橘色追蹤輻條，被動輪用青色追蹤輻條）
+      const rimMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, metalness: 0.88, roughness: 0.2 });
+      const trackColor = isDriveWheel ? 0xf97316 : 0x38bdf8;
+      const trackSpokeMat = new THREE.MeshStandardMaterial({
+        color: trackColor,
+        emissive: trackColor,
+        emissiveIntensity: 0.25
+      });
+
+      [-width * 0.36, width * 0.36].forEach((rz) => {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(rimR, 0.075, 10, 32), rimMat);
+        ring.position.z = rz;
+        wheelGroup.add(ring);
+      });
+
+      for (let s = 0; s < 5; s++) {
+        const sa = (s * Math.PI * 2) / 5;
+        const mat = s === 0 ? trackSpokeMat : rimMat;
+        const spoke = new THREE.Mesh(new THREE.BoxGeometry(rimR - 0.12, 0.11, 0.15), mat);
+        spoke.position.set(Math.cos(sa) * ((rimR + 0.12) / 2), Math.sin(sa) * ((rimR + 0.12) / 2), 0);
+        spoke.rotation.z = sa;
+        wheelGroup.add(spoke);
+      }
+
+      // 輪轂中心蓋
+      const hubMat = new THREE.MeshStandardMaterial({
+        color: isDriveWheel ? 0xf59e0b : 0x64748b,
+        metalness: 0.85,
+        roughness: 0.25
+      });
+      const hubCap = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.26, 0.26, width + 0.16, 16),
+        hubMat
+      );
+      hubCap.rotation.x = Math.PI / 2;
+      wheelGroup.add(hubCap);
+
+      return { group: wheelGroup, trackSpokeMat, hubMat };
+    }
+
+    /**
+     * 動態更新四顆輪子的驅動/被動視覺配色與牽引力向量箭頭位置
+     */
+    function syncWheelDriveVisuals() {
+      const isFwd = state.driveMode === 'FWD';
+      const setWheelStyle = (wheelObj, isDriven) => {
+        const spokeCol = isDriven ? 0xf97316 : 0x38bdf8;
+        wheelObj.trackSpokeMat.color.setHex(spokeCol);
+        wheelObj.trackSpokeMat.emissive.setHex(spokeCol);
+        wheelObj.hubMat.color.setHex(isDriven ? 0xf59e0b : 0x64748b);
+      };
+
+      setWheelStyle(drivetrainSystem.leftFrontWheelGroup, isFwd);
+      setWheelStyle(drivetrainSystem.rightFrontWheelGroup, isFwd);
+      setWheelStyle(drivetrainSystem.leftRearWheelGroup, !isFwd);
+      setWheelStyle(drivetrainSystem.rightRearWheelGroup, !isFwd);
+
+      const activeAxleX = isFwd ? state.frontAxleX : state.rearAxleX;
+      if (drivetrainSystem.leftArrowGroup) drivetrainSystem.leftArrowGroup.position.x = activeAxleX;
+      if (drivetrainSystem.rightArrowGroup) drivetrainSystem.rightArrowGroup.position.x = activeAxleX;
+    }
+
+    function buildDrivetrainAndWheels() {
+      const y = state.axleY;
+      const rearX = state.rearAxleX;
+      const frontX = state.frontAxleX;
+      const zTrack = state.wheelTrackHalfZ;
+
+      // ==================== (A) RWD 專屬：中央傳動軸 + 後軸差速器 ====================
+      const shaftStartX = state.gearboxX - 0.25;
+      const shaftEndX = rearX + 0.65;
+      const shaftMidX = (shaftStartX + shaftEndX) / 2;
+      const shaftLen = Math.abs(shaftStartX - shaftEndX);
+
+      drivetrainSystem.driveshaftGroup.position.set(shaftMidX, y, 0);
+      rwdRootGroup.add(drivetrainSystem.driveshaftGroup);
+
+      const shaftTube = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.11, 0.11, shaftLen, 20),
+        new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.92, roughness: 0.16 })
+      );
+      shaftTube.rotation.z = Math.PI / 2;
+      shaftTube.castShadow = true;
+      drivetrainSystem.driveshaftGroup.add(shaftTube);
+
+      const stripe = new THREE.Mesh(
+        new THREE.BoxGeometry(shaftLen * 0.86, 0.24, 0.045),
+        new THREE.MeshBasicMaterial({ color: 0x38bdf8 })
+      );
+      drivetrainSystem.driveshaftGroup.add(stripe);
+
+      const uFront = createUniversalJoint();
+      uFront.position.x = shaftLen / 2;
+      const uRear = createUniversalJoint();
+      uRear.position.x = -shaftLen / 2;
+      drivetrainSystem.driveshaftGroup.add(uFront, uRear);
+
+      // 後軸差速器與 90° 傘齒輪組
+      const diffBase = new THREE.Group();
+      diffBase.position.set(rearX, y, 0);
+      rwdRootGroup.add(diffBase);
+
+      const diffHousing = new THREE.Mesh(
+        new THREE.SphereGeometry(0.76, 28, 24),
+        new THREE.MeshPhysicalMaterial({
+          color: 0x34d399,
+          transparent: true,
+          opacity: 0.18,
+          roughness: 0.15,
+          depthWrite: false
+        })
+      );
+      diffBase.add(diffHousing);
+
+      const diffRingWire = new THREE.Mesh(
+        new THREE.TorusGeometry(0.76, 0.025, 10, 36),
+        new THREE.MeshBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.55 })
+      );
+      diffBase.add(diffRingWire);
+
+      diffBase.add(drivetrainSystem.diffPinionGroup);
+      const pinionGear = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.14, 0.28, 0.26, 16),
+        new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.85, roughness: 0.22 })
+      );
+      pinionGear.rotation.z = -Math.PI / 2;
+      pinionGear.position.x = 0.42;
+      drivetrainSystem.diffPinionGroup.add(pinionGear);
+
+      diffBase.add(drivetrainSystem.diffCarrierGroup);
+      const ringBevelGear = new THREE.Mesh(
+        new THREE.TorusGeometry(0.46, 0.11, 10, 24),
+        new THREE.MeshStandardMaterial({ color: 0x0ea5e9, metalness: 0.85, roughness: 0.22 })
+      );
+      ringBevelGear.position.z = -0.18;
+      drivetrainSystem.diffCarrierGroup.add(ringBevelGear);
+
+      [-0.25, 0.25].forEach((sy) => {
+        const spider = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.08, 0.15, 0.14, 12),
+          new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.85, roughness: 0.25 })
+        );
+        spider.position.set(0, sy, 0);
+        drivetrainSystem.diffCarrierGroup.add(spider);
+      });
+
+      const rearAxleShaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.11, 0.11, zTrack * 2, 20),
+        new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.92, roughness: 0.16 })
+      );
+      rearAxleShaft.rotation.x = Math.PI / 2;
+      rearAxleShaft.castShadow = true;
+      drivetrainSystem.diffCarrierGroup.add(rearAxleShaft);
+
+      const axleStripe = new THREE.Mesh(
+        new THREE.BoxGeometry(0.24, 0.045, zTrack * 1.9),
+        new THREE.MeshBasicMaterial({ color: 0xf97316 })
+      );
+      drivetrainSystem.diffCarrierGroup.add(axleStripe);
+
+      // ==================== (B) FWD 專屬：前差速器半軸 + 等速萬向接頭 (CV Joints) + 輕量化隨動後軸 ====================
+      fwdTransaxleSystem.diffCarrierGroup.position.set(frontX, y, 0);
+
+      // 整合式前差速器行星傘齒輪
+      [-0.24, 0.24].forEach((sy) => {
+        const spider = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.08, 0.14, 0.13, 12),
+          new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.85, roughness: 0.25 })
+        );
+        spider.position.set(0, sy, 0);
+        fwdTransaxleSystem.diffCarrierGroup.add(spider);
+      });
+
+      // 左右前輪驅動半軸 (Front Half-Shafts: Z = -2.75 .. +2.75)
+      const frontAxleShaft = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.105, 0.105, zTrack * 2, 20),
+        new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.92, roughness: 0.16 })
+      );
+      frontAxleShaft.rotation.x = Math.PI / 2;
+      frontAxleShaft.castShadow = true;
+      fwdTransaxleSystem.diffCarrierGroup.add(frontAxleShaft);
+
+      const frontAxleStripe = new THREE.Mesh(
+        new THREE.BoxGeometry(0.23, 0.045, zTrack * 1.9),
+        new THREE.MeshBasicMaterial({ color: 0xf97316 })
+      );
+      fwdTransaxleSystem.diffCarrierGroup.add(frontAxleStripe);
+
+      // 內側與外側等速萬向接頭 (CV Joints，讓前輪能同時轉向與驅動)
+      const cvMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.85, roughness: 0.22 });
+      [-2.1, -0.85, 0.85, 2.1].forEach((cvZ) => {
+        const cvBell = new THREE.Mesh(new THREE.SphereGeometry(0.18, 16, 12), cvMat);
+        cvBell.scale.set(1, 1, 1.35);
+        cvBell.position.z = cvZ;
+        fwdTransaxleSystem.diffCarrierGroup.add(cvBell);
+      });
+
+      // FWD 輕量化無動力隨動後軸梁 (Rear Torsion Beam Axle，無傳動軸與差速器)
+      const rearBeamAxle = new THREE.Mesh(
+        new THREE.BoxGeometry(0.18, 0.16, zTrack * 1.85),
+        new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.78, roughness: 0.35 })
+      );
+      rearBeamAxle.position.set(rearX, y - 0.05, 0);
+      fwdRootGroup.add(rearBeamAxle);
+
+      // ==================== (C) 四顆汽車輪胎總成（共用於 RWD 與 FWD） ====================
+      drivetrainSystem.leftRearWheelGroup = createCarWheelAssembly(true);
+      drivetrainSystem.leftRearWheelGroup.group.position.set(rearX, y, -zTrack);
+      carRootGroup.add(drivetrainSystem.leftRearWheelGroup.group);
+
+      drivetrainSystem.rightRearWheelGroup = createCarWheelAssembly(true);
+      drivetrainSystem.rightRearWheelGroup.group.position.set(rearX, y, zTrack);
+      carRootGroup.add(drivetrainSystem.rightRearWheelGroup.group);
+
+      drivetrainSystem.leftFrontWheelGroup = createCarWheelAssembly(false);
+      drivetrainSystem.leftFrontWheelGroup.group.position.set(frontX, y, -zTrack);
+      carRootGroup.add(drivetrainSystem.leftFrontWheelGroup.group);
+
+      drivetrainSystem.rightFrontWheelGroup = createCarWheelAssembly(false);
+      drivetrainSystem.rightFrontWheelGroup.group.position.set(frontX, y, zTrack);
+      carRootGroup.add(drivetrainSystem.rightFrontWheelGroup.group);
+
+      // ==================== (D) 驅動輪地面接觸點處的 3D 發光牽引力向量箭頭 ====================
+      carRootGroup.add(drivetrainSystem.tractionVectorsGroup);
+
+      function buildTractionArrow(zPos) {
+        const group = new THREE.Group();
+        group.position.set(rearX, 0.12, zPos);
+
+        const mat = new THREE.MeshStandardMaterial({
+          color: 0xf97316,
+          emissive: 0xea580c,
+          emissiveIntensity: 0.65,
+          roughness: 0.25
+        });
+
+        const sGeo = new THREE.CylinderGeometry(0.075, 0.075, 1.0, 14);
+        sGeo.rotateZ(-Math.PI / 2);
+        sGeo.translate(0.5, 0, 0);
+        const shaft = new THREE.Mesh(sGeo, mat);
+        group.add(shaft);
+
+        const cGeo = new THREE.ConeGeometry(0.21, 0.46, 16);
+        cGeo.rotateZ(-Math.PI / 2);
+        const cone = new THREE.Mesh(cGeo, mat);
+        group.add(cone);
+
+        drivetrainSystem.tractionVectorsGroup.add(group);
+        return { group, shaft, cone };
+      }
+
+      const leftVec = buildTractionArrow(-zTrack - 0.52);
+      drivetrainSystem.leftArrowGroup = leftVec.group;
+      drivetrainSystem.leftArrowShaft = leftVec.shaft;
+      drivetrainSystem.leftArrowCone = leftVec.cone;
+
+      const rightVec = buildTractionArrow(zTrack + 0.52);
+      drivetrainSystem.rightArrowGroup = rightVec.group;
+      drivetrainSystem.rightArrowShaft = rightVec.shaft;
+      drivetrainSystem.rightArrowCone = rightVec.cone;
+
+      // 前輪打滑時的地面摩擦光環特效（FWD 爬坡前輪抓地力不足時亮起）
+      carRootGroup.add(drivetrainSystem.frontSlipGlowGroup);
+      drivetrainSystem.frontSlipGlowGroup.visible = false;
+      [-zTrack, zTrack].forEach((sz) => {
+        const slipRing = new THREE.Mesh(
+          new THREE.RingGeometry(0.45, 0.92, 24),
+          new THREE.MeshBasicMaterial({
+            color: 0xfbbf24,
+            transparent: true,
+            opacity: 0.65,
+            side: THREE.DoubleSide
+          })
+        );
+        slipRing.rotation.x = -Math.PI / 2;
+        slipRing.position.set(frontX - 0.35, 0.04, sz);
+        drivetrainSystem.frontSlipGlowGroup.add(slipRing);
+      });
+    }
+
+    // --------------------------------------------------------------------------
+    // 9. 半透明運動轎跑汽車外殼（支援一鍵切換透視車殼或純底盤裸車檢視）
+    // --------------------------------------------------------------------------
+    const carBodyGroup = new THREE.Group();
+
+    function buildSemiTransparentCarBody() {
+      carRootGroup.add(carBodyGroup);
+
+      // 側視流線車身輪廓（避開前後輪拱，確保輪胎轉動完全不干涉）
+      const bodyShape = new THREE.Shape();
+      bodyShape.moveTo(-5.85, 1.55);
+      // 後輪拱上方
+      bodyShape.lineTo(-5.75, 1.55);
+      bodyShape.absarc(state.rearAxleX, state.axleY, 1.66, Math.PI, 0, true);
+      // 側裙底部至前輪拱
+      bodyShape.lineTo(state.frontAxleX - 1.66, 1.55);
+      bodyShape.absarc(state.frontAxleX, state.axleY, 1.66, Math.PI, 0, true);
+      // 車頭前保桿與引擎蓋
+      bodyShape.lineTo(5.95, 1.55);
+      bodyShape.lineTo(6.05, 2.25);
+      bodyShape.quadraticCurveTo(5.75, 2.85, 4.75, 3.05);
+      // 前擋風玻璃 A 柱與車頂弧線
+      bodyShape.lineTo(2.45, 3.22);
+      bodyShape.quadraticCurveTo(1.15, 4.48, -0.35, 4.52);
+      bodyShape.lineTo(-2.35, 4.46);
+      // 後擋風玻璃 C 柱與車尾行李廂
+      bodyShape.quadraticCurveTo(-4.05, 3.55, -5.35, 3.25);
+      bodyShape.lineTo(-5.88, 2.85);
+      bodyShape.closePath();
+
+      const bodyWidth = 4.65;
+      const bodyGeo = new THREE.ExtrudeGeometry(bodyShape, {
+        depth: bodyWidth,
+        bevelEnabled: true,
+        bevelThickness: 0.25,
+        bevelSize: 0.2,
+        bevelSegments: 3,
+        curveSegments: 24
+      });
+      bodyGeo.translate(0, 0, -bodyWidth / 2);
+
+      const glassShellMat = new THREE.MeshPhysicalMaterial({
+        color: 0x38bdf8,
+        metalness: 0.15,
+        roughness: 0.12,
+        transparent: true,
+        opacity: 0.15,
+        depthWrite: false,
+        side: THREE.DoubleSide
+      });
+
+      const bodyMesh = new THREE.Mesh(bodyGeo, glassShellMat);
+      carBodyGroup.add(bodyMesh);
+
+      // 發光青色車身輪廓邊線（突顯汽車造型與前後方向）
+      const bodyEdges = new THREE.LineSegments(
+        new THREE.EdgesGeometry(bodyGeo, 18),
+        new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.42 })
+      );
+      carBodyGroup.add(bodyEdges);
+
+      // 左右 LED 頭燈（車頭 +X 方向）與 LED 尾燈（車尾 -X 方向）
+      const headLightMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe });
+      const tailLightMat = new THREE.MeshBasicMaterial({ color: 0xef4444 });
+
+      [-1.75, 1.75].forEach((lz) => {
+        const headLight = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.24, 0.68), headLightMat);
+        headLight.position.set(6.12, 2.38, lz);
+        carBodyGroup.add(headLight);
+
+        const tailLight = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.24, 0.72), tailLightMat);
+        tailLight.position.set(-6.02, 2.75, lz);
+        carBodyGroup.add(tailLight);
+      });
+    }
+
+    // --------------------------------------------------------------------------
+    // 10. 物理運算引擎（含 FWD / RWD 傳動效率、爬坡重心轉移與前輪打滑判定）
+    // --------------------------------------------------------------------------
+    function computeDrivePhysics() {
+      const isFwd = state.driveMode === 'FWD';
+      // 機械傳動效率：FWD 省去長傳動軸與 90° 傘齒輪，效率約 94%；RWD 約 89%
+      const efficiency = isFwd ? 0.94 : 0.89;
+
+      const voltRatio = state.voltage / 24.0;          // 24V 為額定滿電壓
+      const gearRatio = state.z2 / state.z1;           // 齒輪比 i = Z2 / Z1
+      const speedMult = state.z1 / state.z2;           // 轉速變化倍率 (1 / i)
+      const torqueMult = gearRatio * efficiency;       // 扭力放大倍率
+
+      // 階段一：直流馬達特性
+      const motorNoLoadRpm = 3600 * voltRatio;         // 24V 時 3600 RPM
+      const motorMaxTorque = 3.60 * voltRatio;         // 24V 時 3.60 N·m（20V 時 3.00 N·m）
+
+      // 階段二：變速箱 / Transaxle 輸出扭力與理論牽引力
+      const gearboxOutputTorque = motorMaxTorque * torqueMult;
+      const theoreticalTractionN = gearboxOutputTorque / state.wheelPhysR;
+
+      // 外部負載 / 爬坡總阻力 = 滾動阻力 (4.5 N) + 重力沿坡道分力 (m * g * sin θ)
+      const g = 9.81;
+      const slopeRad = (state.slopeDeg * Math.PI) / 180;
+      const totalWeightN = state.carMassKg * g;
+      const rollingResistN = 4.5;
+      const gradeResistN = totalWeightN * Math.sin(slopeRad);
+      const totalResistN = rollingResistN + gradeResistN;
+
+      // 爬坡重心轉移效應（Uphill Weight Transfer）：
+      // 靜態軸荷分配：FWD 前軸 52% / 後軸 48%；RWD 前軸 48% / 後軸 52%
+      const staticFrontRatio = isFwd ? 0.52 : 0.48;
+      const staticRearRatio = 1.0 - staticFrontRatio;
+      const weightTransferN = totalWeightN * Math.sin(slopeRad) * state.cgHeightRatio;
+
+      // 爬坡時前輪下壓力減輕、後輪下壓力增加
+      const frontNormalLoadN = Math.max(8.0, totalWeightN * staticFrontRatio * Math.cos(slopeRad) - weightTransferN);
+      const rearNormalLoadN = totalWeightN * staticRearRatio * Math.cos(slopeRad) + weightTransferN;
+
+      const driveAxleNormalN = isFwd ? frontNormalLoadN : rearNormalLoadN;
+      const gripLimitN = state.tireMu * driveAxleNormalN;
+
+      // 判斷是否發生前輪抓地力不足打滑（FWD 爬坡重心後移時，理論牽引力超過前輪靜摩擦力上限）
+      const isSlipping = state.isPlaying && state.voltage > 0 && isFwd && (theoreticalTractionN > gripLimitN);
+
+      // 實際作用於地面的有效推進牽引力受限于輪胎靜摩擦力上限
+      const effectiveTractionN = Math.min(theoreticalTractionN, gripLimitN);
+
+      // 失速判定：當有效接地牽引力小於坡度與滾動總阻力時，車輛無法前進 (0.0 km/h)
+      const isStalled = (state.voltage <= 0.1) || (effectiveTractionN < totalResistN);
+
+      let motorRpm = 0;
+      let drivenWheelRpm = 0;
+      let passiveWheelRpm = 0;
+      let carSpeedMs = 0;
+      let carSpeedKmh = 0;
+      let motorActualTorque = motorMaxTorque;
+      let inputPowerW = 0;
+      let slipBoostFactor = 1.0;
+
+      if (!state.isPlaying || state.voltage <= 0.1) {
+        motorRpm = 0;
+        drivenWheelRpm = 0;
+        passiveWheelRpm = 0;
+        carSpeedMs = 0;
+        carSpeedKmh = 0;
+      } else if (isStalled && !isSlipping) {
+        // 純扭力不足導致馬達過載堵轉失速 (0.0 km/h)
+        motorRpm = 0;
+        drivenWheelRpm = 0;
+        passiveWheelRpm = 0;
+        carSpeedMs = 0;
+        carSpeedKmh = 0;
+      } else if (isStalled && isSlipping) {
+        // FWD 陡坡前輪抓地力徹底喪失：車身無法爬坡 (0.0 km/h)，但前輪因失去抓地負荷而高速空轉打滑！
+        motorRpm = motorNoLoadRpm * 0.92;
+        drivenWheelRpm = motorRpm / gearRatio;
+        passiveWheelRpm = 0;
+        carSpeedMs = 0;
+        carSpeedKmh = 0;
+        slipBoostFactor = 1.85;
+        const motorOmega = (motorRpm * 2 * Math.PI) / 60;
+        inputPowerW = (motorActualTorque * 0.65) * motorOmega;
+      } else {
+        // 正常推進（或 FWD 輕微打滑但仍能爬坡前進）
+        const activeLoadN = Math.min(totalResistN, effectiveTractionN);
+        const loadFraction = Math.min(0.95, activeLoadN / Math.max(0.1, theoreticalTractionN));
+        motorRpm = motorNoLoadRpm * (1 - 0.22 * loadFraction);
+        const baseWheelRpm = motorRpm / gearRatio;
+
+        if (isSlipping) {
+          // 輕微打滑時，前輪空轉轉速高於實際車速對應轉速
+          const excessRatio = Math.min(0.65, (theoreticalTractionN - gripLimitN) / Math.max(1, gripLimitN));
+          slipBoostFactor = 1.0 + excessRatio * 1.15;
+          drivenWheelRpm = baseWheelRpm * slipBoostFactor;
+          passiveWheelRpm = baseWheelRpm * (gripLimitN / theoreticalTractionN);
+        } else {
+          drivenWheelRpm = baseWheelRpm;
+          passiveWheelRpm = baseWheelRpm;
+        }
+
+        // 汽車實際前進線速度由無打滑滾動輪速決定 v = ω_passive * r_wheel
+        const carWheelOmega = (passiveWheelRpm * 2 * Math.PI) / 60;
+        carSpeedMs = carWheelOmega * state.wheelPhysR;
+        carSpeedKmh = carSpeedMs * 3.6;
+
+        const motorOmega = (motorRpm * 2 * Math.PI) / 60;
+        inputPowerW = motorActualTorque * motorOmega;
+      }
+
+      let modeType = 'equal';
+      if (state.z2 > state.z1) modeType = 'reduce';        // 減速增扭
+      else if (state.z2 < state.z1) modeType = 'overdrive'; // 加速減扭
+
+      return {
+        isFwd,
+        efficiency,
+        gearRatio,
+        speedMult,
+        torqueMult,
+        motorRpm,
+        motorActualTorque,
+        inputPowerW,
+        gearboxOutputTorque,
+        theoreticalTractionN,
+        effectiveTractionN,
+        gripLimitN,
+        totalResistN,
+        isStalled,
+        isSlipping,
+        slipBoostFactor,
+        drivenWheelRpm,
+        passiveWheelRpm,
+        carSpeedMs,
+        carSpeedKmh,
+        modeType
+      };
+    }
+
+    // --------------------------------------------------------------------------
+    // 11. 更新 HUD 儀表板與 3D 視覺回饋
+    // --------------------------------------------------------------------------
+    const ui = {
+      valVoltage: document.getElementById('valVoltage'),
+      valPowerW: document.getElementById('valPowerW'),
+      valZ1: document.getElementById('valZ1'),
+      valZ2: document.getElementById('valZ2'),
+      valSlope: document.getElementById('valSlope'),
+      valResistN: document.getElementById('valResistN'),
+
+      teleVoltage: document.getElementById('teleVoltage'),
+      teleMotorRpm: document.getElementById('teleMotorRpm'),
+      teleMotorTorque: document.getElementById('teleMotorTorque'),
+
+      modeBadge: document.getElementById('modeBadge'),
+      teleTeethRatio: document.getElementById('teleTeethRatio'),
+      teleSpeedMult: document.getElementById('teleSpeedMult'),
+      teleGearboxTorque: document.getElementById('teleGearboxTorque'),
+      teleEffPct: document.getElementById('teleEffPct'),
+
+      teleDriveStatus: document.getElementById('teleDriveStatus'),
+      teleWheelRpmLabel: document.getElementById('teleWheelRpmLabel'),
+      teleWheelRpm: document.getElementById('teleWheelRpm'),
+      teleWheelRpmBox: document.getElementById('teleWheelRpmBox'),
+      teleTractionN: document.getElementById('teleTractionN'),
+      teleSpeedKmh: document.getElementById('teleSpeedKmh'),
+      teleSpeedKmhBox: document.getElementById('teleSpeedKmhBox'),
+
+      barEffText: document.getElementById('barEffText'),
+      barTxtMotorRpm: document.getElementById('barTxtMotorRpm'),
+      barTxtWheelRpm: document.getElementById('barTxtWheelRpm'),
+      barMotorRpm: document.getElementById('barMotorRpm'),
+      barWheelRpm: document.getElementById('barWheelRpm'),
+
+      barTxtMotorTq: document.getElementById('barTxtMotorTq'),
+      barTxtWheelTq: document.getElementById('barTxtWheelTq'),
+      barMotorTq: document.getElementById('barMotorTq'),
+      barWheelTq: document.getElementById('barWheelTq'),
+
+      teleGripLabel: document.getElementById('teleGripLabel'),
+      teleGripLimitN: document.getElementById('teleGripLimitN'),
+      teleResistBottom: document.getElementById('teleResistBottom'),
+      teleTractionBottom: document.getElementById('teleTractionBottom'),
+
+      stallBanner: document.getElementById('stallBanner'),
+      slipBanner: document.getElementById('slipBanner'),
+      telemetryLiveDot: document.getElementById('telemetryLiveDot'),
+
+      labelMotor: document.getElementById('labelMotor'),
+      labelGears: document.getElementById('labelGears'),
+      labelDriveshaft: document.getElementById('labelDriveshaft'),
+      labelRearAxle: document.getElementById('labelRearAxle')
+    };
+
+    function updateHUDAndVisuals(phys) {
+      // 滑桿即時數值
+      ui.valVoltage.textContent = state.voltage.toFixed(1);
+      ui.valPowerW.textContent = Math.round(phys.inputPowerW);
+      ui.valZ1.textContent = state.z1;
+      ui.valZ2.textContent = state.z2;
+      ui.valSlope.textContent = state.slopeDeg.toFixed(1);
+      ui.valResistN.textContent = phys.totalResistN.toFixed(1);
+
+      // 階段一：直流馬達
+      ui.teleVoltage.textContent = state.voltage.toFixed(1);
+      ui.teleMotorRpm.textContent = Math.round(phys.motorRpm);
+      ui.teleMotorTorque.textContent = phys.motorActualTorque.toFixed(2);
+
+      // 階段二：變速箱 / Transaxle
+      ui.teleTeethRatio.textContent = `1 : ${phys.gearRatio.toFixed(2)}`;
+      ui.teleSpeedMult.textContent = phys.speedMult.toFixed(2);
+      ui.teleGearboxTorque.textContent = phys.gearboxOutputTorque.toFixed(2);
+      const effPctStr = Math.round(phys.efficiency * 100);
+      ui.teleEffPct.textContent = effPctStr;
+      ui.barEffText.textContent = `${effPctStr}%`;
+
+      if (phys.modeType === 'reduce') {
+        ui.modeBadge.textContent = '減速增扭';
+        ui.modeBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/50';
+      } else if (phys.modeType === 'overdrive') {
+        ui.modeBadge.textContent = '加速減扭';
+        ui.modeBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-sky-500/20 text-sky-300 border border-sky-400/50';
+      } else {
+        ui.modeBadge.textContent = '等速傳動';
+        ui.modeBadge.className = 'px-2 py-0.5 rounded-full text-[11px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/50';
+      }
+
+      // 階段三：驅動輪、抓地力與車速
+      ui.teleWheelRpm.textContent = Math.round(phys.drivenWheelRpm);
+      ui.teleTractionN.textContent = phys.effectiveTractionN.toFixed(1);
+      ui.teleSpeedKmh.textContent = phys.carSpeedKmh.toFixed(1);
+      ui.teleGripLimitN.textContent = phys.gripLimitN.toFixed(1);
+
+      // 對比長條圖
+      const maxRpm = 3800;
+      const maxTq = 18.0;
+      ui.barTxtMotorRpm.textContent = Math.round(phys.motorRpm);
+      ui.barTxtWheelRpm.textContent = Math.round(phys.drivenWheelRpm);
+      ui.barMotorRpm.style.width = `${Math.min(100, (phys.motorRpm / maxRpm) * 100)}%`;
+      ui.barWheelRpm.style.width = `${Math.min(100, (phys.drivenWheelRpm / maxRpm) * 100)}%`;
+
+      ui.barTxtMotorTq.textContent = phys.motorActualTorque.toFixed(2);
+      ui.barTxtWheelTq.textContent = phys.gearboxOutputTorque.toFixed(2);
+      ui.barMotorTq.style.width = `${Math.min(100, (phys.motorActualTorque / maxTq) * 100)}%`;
+      ui.barWheelTq.style.width = `${Math.min(100, (phys.gearboxOutputTorque / maxTq) * 100)}%`;
+
+      ui.teleResistBottom.textContent = phys.totalResistN.toFixed(1);
+      ui.teleTractionBottom.textContent = phys.effectiveTractionN.toFixed(1);
+
+      // 警告橫幅與狀態指示（優先顯示打滑警告或失速警告）
+      if (phys.isSlipping && state.isPlaying) {
+        ui.slipBanner.classList.remove('hidden');
+        ui.stallBanner.classList.add('hidden');
+        ui.teleDriveStatus.textContent = '⚡ 前輪抓地不足打滑';
+        ui.teleDriveStatus.className = 'text-[11px] font-mono font-bold text-amber-400';
+        ui.teleWheelRpmBox.className = 'font-mono text-xs sm:text-sm font-bold text-amber-300 mt-0.5';
+        ui.teleSpeedKmhBox.className = 'font-mono text-xs sm:text-sm font-bold text-amber-200 mt-0.5';
+        ui.telemetryLiveDot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+      } else if (phys.isStalled && state.isPlaying && state.voltage > 0.1) {
+        ui.stallBanner.classList.remove('hidden');
+        ui.slipBanner.classList.add('hidden');
+        ui.teleDriveStatus.textContent = '⛔ 扭力不足失速';
+        ui.teleDriveStatus.className = 'text-[11px] font-mono font-bold text-red-400';
+        ui.teleWheelRpmBox.className = 'font-mono text-xs sm:text-sm font-bold text-red-400 mt-0.5';
+        ui.teleSpeedKmhBox.className = 'font-mono text-xs sm:text-sm font-bold text-red-400 mt-0.5';
+        ui.telemetryLiveDot.className = 'w-2 h-2 rounded-full bg-red-500 animate-ping';
+      } else {
+        ui.stallBanner.classList.add('hidden');
+        ui.slipBanner.classList.add('hidden');
+        const activeLabel = phys.isFwd ? '● 前輪牽引推進中' : '● 後輪推進中';
+        ui.teleDriveStatus.textContent = (state.isPlaying && state.voltage > 0.1) ? activeLabel : '⏸ 已停止/待機';
+        ui.teleDriveStatus.className = (state.isPlaying && state.voltage > 0.1) ? 'text-[11px] font-mono font-bold text-emerald-400' : 'text-[11px] font-mono font-bold text-slate-400';
+        ui.teleWheelRpmBox.className = 'font-mono text-xs sm:text-sm font-bold text-emerald-300 mt-0.5';
+        ui.teleSpeedKmhBox.className = 'font-mono text-xs sm:text-sm font-bold text-white mt-0.5';
+        ui.telemetryLiveDot.className = (state.isPlaying && state.voltage > 0.1)
+          ? 'w-2 h-2 rounded-full bg-emerald-400 animate-pulse'
+          : 'w-2 h-2 rounded-full bg-slate-500';
+      }
+
+      // 前輪打滑地面光環特效
+      drivetrainSystem.frontSlipGlowGroup.visible = phys.isSlipping && state.isPlaying;
+      if (drivetrainSystem.frontSlipGlowGroup.visible) {
+        const pulse = 0.85 + 0.3 * Math.sin(state.fluxTime * 18);
+        drivetrainSystem.frontSlipGlowGroup.scale.set(pulse, 1, pulse);
+      }
+
+      // 動態縮放驅動輪接地點的 3D 牽引力向量箭頭
+      const forceNorm = Math.min(1, Math.max(0.06, phys.effectiveTractionN / 55.0));
+      const arrowLen = 0.75 + forceNorm * 2.55;
+      const arrowThick = 0.72 + forceNorm * 0.95;
+
+      [
+        { s: drivetrainSystem.leftArrowShaft, c: drivetrainSystem.leftArrowCone },
+        { s: drivetrainSystem.rightArrowShaft, c: drivetrainSystem.rightArrowCone }
+      ].forEach((pair) => {
+        pair.s.scale.set(arrowLen, arrowThick, arrowThick);
+        pair.c.scale.set(arrowThick, arrowThick, arrowThick);
+        pair.c.position.set(arrowLen + 0.16 * arrowThick, 0, 0);
+
+        let col = 0xf97316;
+        if (phys.isSlipping && state.isPlaying) col = 0xfbbf24;
+        else if (phys.isStalled && state.isPlaying && state.voltage > 0.1) col = 0xef4444;
+        pair.s.material.color.setHex(col);
+        pair.s.material.emissive.setHex(col);
+      });
+    }
+
+    // --------------------------------------------------------------------------
+    // 12. 3D 座標投影至 2D 浮動標籤（隨 FWD/RWD 與坡度仰角自動跟隨）
+    // --------------------------------------------------------------------------
+    const tempWorldPt = new THREE.Vector3();
+
+    function projectLocalCarPointToScreen(localVec, domEl) {
+      if (!state.showLabels) {
+        domEl.style.opacity = '0';
+        return;
+      }
+      tempWorldPt.copy(localVec);
+      carRootGroup.localToWorld(tempWorldPt);
+      tempWorldPt.project(camera);
+
+      if (tempWorldPt.z > 1) {
+        domEl.style.opacity = '0';
+        return;
+      }
+      const x = (tempWorldPt.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-tempWorldPt.y * 0.5 + 0.5) * window.innerHeight;
+      domEl.style.left = `${x}px`;
+      domEl.style.top = `${y}px`;
+      domEl.style.opacity = '1';
+    }
+
+    function update3DLabels() {
+      const r1 = (state.gearModule * state.z1) / 2;
+      const r2 = (state.gearModule * state.z2) / 2;
+      const motorY = state.axleY + r1 + r2;
+
+      if (state.driveMode === 'RWD') {
+        projectLocalCarPointToScreen(new THREE.Vector3(state.motorCenterX, motorY + 1.15, 0), ui.labelMotor);
+        projectLocalCarPointToScreen(new THREE.Vector3(state.gearboxX, motorY + r1 + 0.45, 0), ui.labelGears);
+        projectLocalCarPointToScreen(new THREE.Vector3(-1.3, state.axleY + 0.45, 0), ui.labelDriveshaft);
+        projectLocalCarPointToScreen(new THREE.Vector3(state.rearAxleX, state.axleY + 1.65, 0), ui.labelRearAxle);
+      } else {
+        // FWD 模式下標籤精準指向橫置馬達、前驅一體箱 Transaxle、淨空中央通道與雙前驅動輪
+        projectLocalCarPointToScreen(new THREE.Vector3(state.frontAxleX, motorY + 1.15, 1.25), ui.labelMotor);
+        projectLocalCarPointToScreen(new THREE.Vector3(state.frontAxleX, motorY + r1 + 0.55, -0.35), ui.labelGears);
+        projectLocalCarPointToScreen(new THREE.Vector3(-1.8, state.axleY + 0.35, 0), ui.labelDriveshaft);
+        projectLocalCarPointToScreen(new THREE.Vector3(state.frontAxleX, state.axleY + 1.65, -2.55), ui.labelRearAxle);
+      }
+    }
+
+    // --------------------------------------------------------------------------
+    // 13. 主動畫迴圈 (requestAnimationFrame)
+    // --------------------------------------------------------------------------
+    let lastTimestamp = 0;
+
+    function animate(timestamp) {
+      requestAnimationFrame(animate);
+
+      if (!lastTimestamp) lastTimestamp = timestamp;
+      const dt = Math.min(0.05, (timestamp - lastTimestamp) / 1000);
+      lastTimestamp = timestamp;
+
+      const phys = computeDrivePhysics();
+      const timeScale = state.slowMo ? 0.25 : 1.0;
+
+      // 1. 平滑傾斜整個道路與汽車仰角 (0° ~ 25°)
+      const targetPitch = (state.slopeDeg * Math.PI) / 180;
+      state.currentSlopeRad += (targetPitch - state.currentSlopeRad) * 0.12;
+      slopeWorldGroup.rotation.z = state.currentSlopeRad;
+
+      // 2. 更新機械傳動旋轉角度與道路前進捲動
+      const isActiveMotion = state.isPlaying && state.voltage > 0.1 && (!phys.isStalled || phys.isSlipping);
+      if (isActiveMotion) {
+        const visualMotorRpm = phys.motorRpm * 0.12;
+        const omegaMotor = ((visualMotorRpm * 2 * Math.PI) / 60) * timeScale;
+        state.motorAngle += omegaMotor * dt;
+
+        // 驅動輪角速度（若 FWD 打滑則包含空轉超速比例）
+        const omegaDrivenWheel = omegaMotor * (state.z1 / state.z2) * phys.slipBoostFactor;
+        state.drivenWheelAngle += omegaDrivenWheel * dt;
+
+        // 從動輪角速度（反映汽車真實路面推進速度）
+        const omegaPassiveWheel = phys.isStalled
+          ? 0
+          : omegaMotor * (state.z1 / state.z2) * (phys.isSlipping ? (1 / phys.slipBoostFactor) : 1.0);
+        state.passiveWheelAngle += omegaPassiveWheel * dt;
+
+        // 道路紋理與路旁標誌柱依真實車速向後 (-X) 移動
+        const roadLinearSpeed = omegaPassiveWheel * state.wheelVisualR;
+        state.roadScroll += roadLinearSpeed * 0.11 * dt;
+        if (roadSystem.roadTexture) {
+          roadSystem.roadTexture.offset.x = state.roadScroll;
+        }
+
+        roadSystem.posts.forEach((post) => {
+          post.position.x -= roadLinearSpeed * dt;
+          if (post.position.x < -roadSystem.postSpan / 2) {
+            post.position.x += roadSystem.postSpan;
+          }
+        });
+
+        state.fluxTime += dt * timeScale * (0.5 + (state.voltage / 24) * 1.8);
+      } else if (state.isPlaying && phys.isStalled && state.voltage > 0.1) {
+        state.stallJitterTime += dt;
+      }
+
+      const stallJitter = (state.isPlaying && phys.isStalled && !phys.isSlipping && state.voltage > 0.1)
+        ? Math.sin(state.stallJitterTime * 55) * 0.015
+        : 0;
+
+      const theta1 = state.motorAngle + stallJitter;
+      const phaseOffset2 = Math.PI / 2 + (Math.PI / 2) * (state.z1 / state.z2) - Math.PI / state.z2;
+      const theta2 = -theta1 * (state.z1 / state.z2) + phaseOffset2;
+      const outputShaftAngle = -theta1 * (state.z1 / state.z2);
+
+      const drivenWheelRotZ = -(state.drivenWheelAngle + stallJitter * (state.z1 / state.z2));
+      const passiveWheelRotZ = -state.passiveWheelAngle;
+
+      if (state.driveMode === 'RWD') {
+        // RWD 傳動鏈旋轉更新
+        motorSystem.rotorGroup.rotation.x = theta1;
+        gearboxSystem.gear1Group.rotation.x = theta1;
+        gearboxSystem.gear2Group.rotation.x = theta2;
+        drivetrainSystem.driveshaftGroup.rotation.x = outputShaftAngle;
+        drivetrainSystem.diffPinionGroup.rotation.x = outputShaftAngle;
+
+        drivetrainSystem.diffCarrierGroup.rotation.z = drivenWheelRotZ;
+        drivetrainSystem.leftRearWheelGroup.group.rotation.z = drivenWheelRotZ;
+        drivetrainSystem.rightRearWheelGroup.group.rotation.z = drivenWheelRotZ;
+
+        drivetrainSystem.leftFrontWheelGroup.group.rotation.z = passiveWheelRotZ;
+        drivetrainSystem.rightFrontWheelGroup.group.rotation.z = passiveWheelRotZ;
+      } else {
+        // FWD 橫置傳動鏈旋轉更新（馬達與 Z1 繞 Z 軸正轉，Z2 與前驅半軸繞 Z 軸反轉向前滾動）
+        fwdMotorSystem.rotorGroup.rotation.z = theta1;
+        fwdTransaxleSystem.gear1Group.rotation.z = theta1;
+        fwdTransaxleSystem.gear2Group.rotation.z = theta2;
+
+        fwdTransaxleSystem.diffCarrierGroup.rotation.z = drivenWheelRotZ;
+        drivetrainSystem.leftFrontWheelGroup.group.rotation.z = drivenWheelRotZ;
+        drivetrainSystem.rightFrontWheelGroup.group.rotation.z = drivenWheelRotZ;
+
+        drivetrainSystem.leftRearWheelGroup.group.rotation.z = passiveWheelRotZ;
+        drivetrainSystem.rightRearWheelGroup.group.rotation.z = passiveWheelRotZ;
+      }
+
+      // 3. 更新當前馬達內部磁場粒子與齒輪接觸點發光
+      const activeMotorSys = state.driveMode === 'RWD' ? motorSystem : fwdMotorSystem;
+      const activeGlow = state.driveMode === 'RWD' ? gearboxSystem.contactGlow : fwdTransaxleSystem.contactGlow;
+      const voltFactor = state.voltage / 24;
+      const motorActive = state.isPlaying && state.voltage > 0.1;
+
+      activeMotorSys.fluxRings.forEach((ring, idx) => {
+        ring.material.opacity = (motorActive && state.showVectorsAndFlux)
+          ? (0.2 + voltFactor * 0.45) * (0.75 + 0.25 * Math.sin(state.fluxTime * 5 + idx))
+          : 0.0;
+      });
+      activeMotorSys.fluxParticles.forEach((p) => {
+        const a = p.userData.angle + state.fluxTime * 2.4;
+        if (p.userData.axisMode === 'X') {
+          p.position.set(p.userData.axisOffset, Math.cos(a) * p.userData.radius, Math.sin(a) * p.userData.radius);
+        } else {
+          p.position.set(Math.cos(a) * p.userData.radius, Math.sin(a) * p.userData.radius, p.userData.axisOffset);
+        }
+        p.visible = motorActive && state.showVectorsAndFlux;
+      });
+
+      activeGlow.scale.setScalar(motorActive ? 1 + 0.22 * Math.sin(state.fluxTime * 8) : 0.85);
+
+      // 4. 相機視角平滑插值
+      if (state.cameraLerpActive) {
+        camera.position.lerp(state.targetCamPos, 0.08);
+        controls.target.lerp(state.targetControlsCenter, 0.08);
+        if (
+          camera.position.distanceTo(state.targetCamPos) < 0.03 &&
+          controls.target.distanceTo(state.targetControlsCenter) < 0.03
+        ) {
+          state.cameraLerpActive = false;
+        }
+      }
+
+      controls.update();
+      updateHUDAndVisuals(phys);
+      update3DLabels();
+      renderer.render(scene, camera);
+    }
+
+    // --------------------------------------------------------------------------
+    // 14. 驅動架構切換 (RWD <-> FWD)、視角控制與互動事件
+    // --------------------------------------------------------------------------
+    let currentCamKey = 'overview';
+
+    function setDriveMode(mode) {
+      state.driveMode = mode;
+      const isFwd = mode === 'FWD';
+
+      rwdRootGroup.visible = !isFwd;
+      fwdRootGroup.visible = isFwd;
+
+      rebuildGearboxAndMotorHeight();
+      syncWheelDriveVisuals();
+
+      // 更新切換按鈕外觀與標題文字
+      const btnRWD = document.getElementById('btnModeRWD');
+      const btnFWD = document.getElementById('btnModeFWD');
+      const headerBadge = document.getElementById('headerDriveBadge');
+      const headerSub = document.getElementById('headerSubtitle');
+      const effBadge = document.getElementById('driveEffBadge');
+
+      if (isFwd) {
+        btnFWD.className = 'py-2.5 px-2 rounded-lg text-center font-bold transition-all bg-gradient-to-br from-cyan-500/30 to-blue-600/25 border border-cyan-400/80 text-cyan-200 shadow-md';
+        btnRWD.className = 'py-2.5 px-2 rounded-lg text-center font-medium transition-all bg-transparent hover:bg-slate-800/70 border border-transparent text-slate-400';
+        headerBadge.textContent = 'FWD 前輪驅動';
+        headerBadge.className = 'px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50';
+        headerSub.textContent = '前置橫向馬達 → 前驅一體式變速差速箱 (Transaxle) → 等速萬向接頭 → 雙前驅動輪';
+        effBadge.textContent = '機械效率 η = 94%';
+
+        // 更新浮動 3D 標籤文字與遙測標題
+        document.getElementById('labelMotorText').textContent = '1. 前置橫向直流馬達 (橫置引擎室)';
+        document.getElementById('labelGearsText').textContent = '2. 前驅一體式變速差速箱 (Transaxle)';
+        document.getElementById('labelDriveshaftText').textContent = '3. 無中央傳動軸 (輕量化隨動後軸)';
+        document.getElementById('labelRearAxleText').textContent = '4. 雙前驅動輪與等速萬向接頭 (CV)';
+
+        document.getElementById('stage1Title').textContent = '階段一：前置橫向直流馬達';
+        document.getElementById('stage2Title').textContent = '階段二：前驅一體箱 (Transaxle)';
+        document.getElementById('stage3Title').textContent = '階段三：雙前驅動輪與接地牽引';
+        document.getElementById('teleWheelRpmLabel').textContent = '前驅動輪轉速';
+        ui.teleGripLabel.textContent = '前輪最大靜摩擦抓地力:';
+      } else {
+        btnRWD.className = 'py-2.5 px-2 rounded-lg text-center font-bold transition-all bg-gradient-to-br from-amber-500/30 to-orange-600/25 border border-amber-400/80 text-amber-200 shadow-md';
+        btnFWD.className = 'py-2.5 px-2 rounded-lg text-center font-medium transition-all bg-transparent hover:bg-slate-800/70 border border-transparent text-slate-400';
+        headerBadge.textContent = 'RWD 後輪驅動';
+        headerBadge.className = 'px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-amber-500/25 text-amber-200 border border-amber-400/50';
+        headerSub.textContent = '前置縱向馬達 → 縱置變速箱 → 中央傳動軸 → 後軸差速器 → 雙後驅動輪';
+        effBadge.textContent = '機械效率 η = 89%';
+
+        document.getElementById('labelMotorText').textContent = '1. 前置縱向直流馬達 (高轉速/低扭力)';
+        document.getElementById('labelGearsText').textContent = '2. 縱置變速箱 Z₁→Z₂ (變速增扭)';
+        document.getElementById('labelDriveshaftText').textContent = '3. 中央傳動軸與十字萬向接頭';
+        document.getElementById('labelRearAxleText').textContent = '4. 後軸差速器與雙後驅動輪';
+
+        document.getElementById('stage1Title').textContent = '階段一：前置縱向直流馬達';
+        document.getElementById('stage2Title').textContent = '階段二：縱置變速箱齒輪組';
+        document.getElementById('stage3Title').textContent = '階段三：雙後驅動輪與接地牽引';
+        document.getElementById('teleWheelRpmLabel').textContent = '後驅動輪轉速';
+        ui.teleGripLabel.textContent = '後輪最大靜摩擦抓地力:';
+      }
+
+      // 若目前正處於特寫視角，自動平滑切換對焦目標至對應的前驅或後驅結構
+      if (currentCamKey !== 'overview') {
+        setCameraView(currentCamKey);
+      }
+    }
+
+    function setCameraView(key) {
+      currentCamKey = key;
+      const isFwd = state.driveMode === 'FWD';
+
+      if (key === 'overview') {
+        state.targetCamPos.set(6.8, 11.2, 13.8);
+        state.targetControlsCenter.set(0.0, 2.0, 0.0);
+      } else if (key === 'drivetrain') {
+        if (isFwd) {
+          // 對焦前驅橫置馬達 + Transaxle 一體箱與前輪半軸
+          state.targetCamPos.set(8.6, 5.2, 5.4);
+          state.targetControlsCenter.set(state.frontAxleX, 2.0, 0.2);
+        } else {
+          // 對焦後驅變速箱 + 中央傳動軸 + 後軸差速器
+          state.targetCamPos.set(-0.5, 5.6, 7.2);
+          state.targetControlsCenter.set(-1.4, 1.8, 0.0);
+        }
+      } else if (key === 'gearbox') {
+        if (isFwd) {
+          state.targetCamPos.set(state.frontAxleX + 0.3, 3.0, 3.6);
+          state.targetControlsCenter.set(state.frontAxleX, 2.1, 0.0);
+        } else {
+          state.targetCamPos.set(4.6, 3.0, 3.8);
+          state.targetControlsCenter.set(state.gearboxX, 2.2, 0.0);
+        }
+      } else if (key === 'wheel') {
+        const targetAxleX = isFwd ? state.frontAxleX : state.rearAxleX;
+        state.targetCamPos.set(targetAxleX + 2.6, 2.1, 6.2);
+        state.targetControlsCenter.set(targetAxleX, 0.85, 2.4);
+      }
+      state.cameraLerpActive = true;
+
+      document.querySelectorAll('.cam-btn').forEach((btn) => {
+        if (btn.getAttribute('data-cam') === key) {
+          btn.className = 'cam-btn px-2.5 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/25 text-cyan-200 border border-cyan-400/50 transition';
+        } else {
+          btn.className = 'cam-btn px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-300 hover:bg-slate-800/80 border border-transparent transition';
+        }
+      });
+    }
+
+    function applyScenario(key) {
+      if (key === 'climb') {
+        // 爬坡重載模式 (1:4)：RWD 穩定爬坡；切至 FWD 可體驗爬坡重心後移導致前輪抓地力不足打滑！
+        state.voltage = 20.0;
+        state.z1 = 12;
+        state.z2 = 48;
+        state.slopeDeg = 18.0;
+      } else if (key === 'cruise') {
+        // 均衡巡航模式 (1:2.5)
+        state.voltage = 18.0;
+        state.z1 = 16;
+        state.z2 = 40;
+        state.slopeDeg = 5.0;
+      } else if (key === 'speed') {
+        // 平路高速模式 (2:1 加速減扭)
+        state.voltage = 22.0;
+        state.z1 = 30;
+        state.z2 = 15;
+        state.slopeDeg = 1.0;
+      }
+
+      document.getElementById('sliderVoltage').value = state.voltage;
+      document.getElementById('sliderZ1').value = state.z1;
+      document.getElementById('sliderZ2').value = state.z2;
+      document.getElementById('sliderSlope').value = state.slopeDeg;
+      rebuildGearboxAndMotorHeight();
+
+      document.querySelectorAll('.scenario-btn').forEach((btn) => {
+        if (btn.getAttribute('data-scenario') === key) {
+          btn.className = 'scenario-btn py-2 px-1.5 rounded-xl text-center bg-amber-500/20 border border-amber-400/70 text-amber-200 transition';
+        } else {
+          btn.className = 'scenario-btn py-2 px-1.5 rounded-xl text-center bg-slate-800/80 hover:bg-slate-700/80 border border-slate-600/60 text-slate-200 transition';
+        }
+      });
+    }
+
+    function bindEvents() {
+      document.getElementById('btnModeRWD').addEventListener('click', () => setDriveMode('RWD'));
+      document.getElementById('btnModeFWD').addEventListener('click', () => setDriveMode('FWD'));
+
+      document.querySelectorAll('.cam-btn').forEach((btn) => {
+        btn.addEventListener('click', () => setCameraView(btn.getAttribute('data-cam')));
+      });
+
+      document.querySelectorAll('.scenario-btn').forEach((btn) => {
+        btn.addEventListener('click', () => applyScenario(btn.getAttribute('data-scenario')));
+      });
+
+      // 暫停 / 繼續
+      const btnPlayPause = document.getElementById('btnPlayPause');
+      btnPlayPause.addEventListener('click', () => {
+        state.isPlaying = !state.isPlaying;
+        document.getElementById('playIcon').textContent = state.isPlaying ? '⏸' : '▶';
+        document.getElementById('playText').textContent = state.isPlaying ? '暫停運轉' : '繼續運轉';
+      });
+
+      // 慢動作觀察
+      const btnSlowMo = document.getElementById('btnSlowMo');
+      btnSlowMo.addEventListener('click', () => {
+        state.slowMo = !state.slowMo;
+        const dot = document.getElementById('slowDot');
+        if (state.slowMo) {
+          btnSlowMo.classList.add('border-amber-400/70', 'text-amber-300', 'bg-amber-950/50');
+          dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-ping';
+        } else {
+          btnSlowMo.classList.remove('border-amber-400/70', 'text-amber-300', 'bg-amber-950/50');
+          dot.className = 'w-2 h-2 rounded-full bg-slate-400';
+        }
+      });
+
+      // 半透明汽車外殼開關
+      const btnCarShell = document.getElementById('btnCarShell');
+      btnCarShell.addEventListener('click', () => {
+        state.showCarShell = !state.showCarShell;
+        carBodyGroup.visible = state.showCarShell;
+        btnCarShell.textContent = state.showCarShell ? '透視車殼：開' : '純底盤裸車';
+        btnCarShell.className = state.showCarShell
+          ? 'px-2.5 py-1.5 rounded-lg text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 transition'
+          : 'px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 text-slate-300 border border-slate-600/50 transition';
+      });
+
+      // 力向量與磁場顯示開關
+      const btnVectors = document.getElementById('btnVectors');
+      btnVectors.addEventListener('click', () => {
+        state.showVectorsAndFlux = !state.showVectorsAndFlux;
+        drivetrainSystem.tractionVectorsGroup.visible = state.showVectorsAndFlux;
+        motorSystem.fluxGroup.visible = state.showVectorsAndFlux;
+        fwdMotorSystem.fluxGroup.visible = state.showVectorsAndFlux;
+        btnVectors.className = state.showVectorsAndFlux
+          ? 'px-2.5 py-1.5 rounded-lg text-xs font-bold bg-orange-500/20 text-orange-300 border border-orange-400/40 transition'
+          : 'px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 text-slate-300 border border-slate-600/50 transition';
+      });
+
+      // 3D 標籤開關
+      const btnLabels = document.getElementById('btnLabels');
+      btnLabels.addEventListener('click', () => {
+        state.showLabels = !state.showLabels;
+        btnLabels.className = state.showLabels
+          ? 'px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 transition'
+          : 'px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-800/80 text-slate-300 border border-slate-600/50 transition';
+      });
+
+      // 參數滑桿
+      document.getElementById('sliderVoltage').addEventListener('input', (e) => {
+        state.voltage = parseFloat(e.target.value);
+      });
+      document.getElementById('sliderZ1').addEventListener('input', (e) => {
+        state.z1 = parseInt(e.target.value, 10);
+        rebuildGearboxAndMotorHeight();
+      });
+      document.getElementById('sliderZ2').addEventListener('input', (e) => {
+        state.z2 = parseInt(e.target.value, 10);
+        rebuildGearboxAndMotorHeight();
+      });
+      document.getElementById('sliderSlope').addEventListener('input', (e) => {
+        state.slopeDeg = parseFloat(e.target.value);
+      });
+
+      // 面板收合
+      let leftCollapsed = false;
+      document.getElementById('toggleLeftPanel').addEventListener('click', (e) => {
+        leftCollapsed = !leftCollapsed;
+        document.getElementById('leftPanelBody').classList.toggle('hidden', leftCollapsed);
+        e.target.textContent = leftCollapsed ? '展開 ▼' : '收合 ▲';
+      });
+
+      let rightCollapsed = false;
+      document.getElementById('toggleRightPanel').addEventListener('click', (e) => {
+        rightCollapsed = !rightCollapsed;
+        document.getElementById('rightPanelBody').classList.toggle('hidden', rightCollapsed);
+        e.target.textContent = rightCollapsed ? '展開 ▼' : '收合 ▲';
+      });
+
+      let theoryCollapsed = false;
+      document.getElementById('toggleTheoryBtn').addEventListener('click', () => {
+        theoryCollapsed = !theoryCollapsed;
+        document.getElementById('theoryBody').classList.toggle('hidden', theoryCollapsed);
+        document.getElementById('theoryArrow').textContent = theoryCollapsed ? '▶' : '▼';
+      });
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+    }
+
+    // --------------------------------------------------------------------------
+    // 15. 視窗載入後啟動模擬
+    // --------------------------------------------------------------------------
+    window.onload = function () {
+      setupLightsAndEnvironment();
+      buildDynamicRoad();
+      buildCarChassis();
+      buildFrontMotors();
+      initGearboxes();
+      buildDrivetrainAndWheels();
+      buildSemiTransparentCarBody();
+      setDriveMode('RWD');
+      bindEvents();
+      requestAnimationFrame(animate);
+    };
+  </script>
+</body>
+</html>
