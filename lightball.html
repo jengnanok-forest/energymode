@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>燈泡結構解說圖互動式網頁｜國小自然科學教學</title>
+  <!-- 載入 Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- 載入繁體中文與英數無襯線字體 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet" />
+
+  <style>
+    :root {
+      --bg-canvas: #F8FAFC;
+      --primary-blue: #2F5597;
+      --accent-blue: #3B82F6;
+      --filament-orange: #ED7D31;
+      --glass-stroke: #6D6864;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: 'Noto Sans TC', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-canvas);
+      color: #1E293B;
+      touch-action: manipulation;
+      overflow-x: hidden;
+    }
+
+    /* 可互動 SVG 結構群組：設定 transform-box 與彈性放大過渡動畫 */
+    .bulb-part {
+      transform-box: fill-box;
+      transform-origin: center;
+      transition:
+        transform 0.36s cubic-bezier(0.34, 1.56, 0.64, 1),
+        filter 0.28s ease,
+        opacity 0.28s ease;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    /* 未被選取時，若已有其他部位被聚焦，稍微柔和以凸顯主角 */
+    .has-selection .bulb-part:not(.is-active):not(.is-hovered) {
+      opacity: 0.72;
+    }
+
+    /* 各部位放大比例與視覺強調（呈現「一點放大」的立體 Q 彈手感） */
+    #part-glass.is-hovered,
+    #part-glass.is-active {
+      transform: scale(1.08);
+      filter: drop-shadow(0 8px 16px rgba(59, 130, 246, 0.28));
+    }
+
+    #part-metal.is-hovered,
+    #part-metal.is-active {
+      transform: scale(1.09);
+      filter: drop-shadow(0 8px 16px rgba(47, 85, 151, 0.3));
+    }
+
+    #part-filament.is-hovered,
+    #part-filament.is-active {
+      transform: scale(1.18);
+      filter: drop-shadow(0 4px 12px rgba(237, 125, 49, 0.55));
+    }
+
+    #part-wires.is-hovered,
+    #part-wires.is-active {
+      transform: scale(1.12);
+      filter: drop-shadow(0 5px 12px rgba(47, 85, 151, 0.48));
+    }
+
+    #part-contact.is-hovered,
+    #part-contact.is-active {
+      transform: scale(1.22);
+      filter: drop-shadow(0 5px 12px rgba(37, 99, 235, 0.45));
+    }
+
+    /* 點擊瞬間的彈跳脈衝動畫，重複點擊同一按鈕也有明顯放大手感 */
+    @keyframes popPulseSmall {
+      0% { transform: scale(1); }
+      45% { transform: scale(1.28); }
+      75% { transform: scale(1.15); }
+      100% { transform: scale(1.18); }
+    }
+
+    @keyframes popPulseMedium {
+      0% { transform: scale(1); }
+      45% { transform: scale(1.18); }
+      75% { transform: scale(1.10); }
+      100% { transform: scale(1.12); }
+    }
+
+    @keyframes popPulseLarge {
+      0% { transform: scale(1); }
+      45% { transform: scale(1.14); }
+      75% { transform: scale(1.07); }
+      100% { transform: scale(1.085); }
+    }
+
+    .pop-pulse-small {
+      animation: popPulseSmall 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .pop-pulse-medium {
+      animation: popPulseMedium 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .pop-pulse-large {
+      animation: popPulseLarge 0.42s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    /* 結構標籤按鈕互動樣式 */
+    .label-btn {
+      transition:
+        transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1),
+        background-color 0.22s ease,
+        border-color 0.22s ease,
+        box-shadow 0.22s ease,
+        color 0.22s ease;
+      touch-action: manipulation;
+      user-select: none;
+    }
+
+    .label-btn:hover {
+      transform: translateY(-2px) scale(1.03);
+    }
+
+    .label-btn:active {
+      transform: scale(0.97);
+    }
+
+    .label-btn.is-active {
+      transform: scale(1.06);
+      background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+      color: #FFFFFF;
+      border-color: #1E40AF;
+      box-shadow: 0 10px 20px -4px rgba(37, 99, 235, 0.4);
+    }
+
+    .label-btn.is-active .btn-badge {
+      background-color: rgba(255, 255, 255, 0.22);
+      color: #FFFFFF;
+    }
+
+    /* 通電發光模式的動畫效果 */
+    @keyframes rayShimmer {
+      0%, 100% {
+        opacity: 0.85;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1.04);
+      }
+    }
+
+    .power-on #light-rays {
+      transform-box: fill-box;
+      transform-origin: center bottom;
+      animation: rayShimmer 1.6s ease-in-out infinite;
+    }
+
+    .power-on #light-rays path {
+      stroke: #F59E0B !important;
+      stroke-width: 3.4 !important;
+      filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.8));
+    }
+
+    .power-on #filament-arc {
+      stroke: #FEF08A !important;
+      stroke-width: 4.8 !important;
+      filter: drop-shadow(0 0 10px #F59E0B) drop-shadow(0 0 18px #FBBF24);
+    }
+
+    .power-on #bulb-glow-aura {
+      opacity: 1 !important;
+    }
+
+    .power-on #part-glass ellipse {
+      filter: drop-shadow(0 0 14px rgba(253, 224, 71, 0.65));
+    }
+
+    /* 解說卡片切換淡入動畫 */
+    @keyframes cardFadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .card-animate {
+      animation: cardFadeUp 0.28s ease-out;
+    }
+
+    /* 指示線流動微動畫 */
+    .leader-line-active {
+      stroke-dasharray: 6 4;
+      animation: dashFlow 1s linear infinite;
+    }
+
+    @keyframes dashFlow {
+      to {
+        stroke-dashoffset: -20;
+      }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between bg-slate-50 text-slate-800 selection:bg-blue-100 selection:text-blue-900">
+
+  <!-- 頂部自然科學教室導覽列 -->
+  <header class="w-full bg-white/90 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-3 sm:px-6 py-2.5 sm:py-3.5 flex flex-wrap items-center justify-between gap-2.5">
+      <!-- 標題區 -->
+      <div class="flex items-center gap-2.5 sm:gap-3">
+        <div class="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white shadow-sm shrink-0">
+          <!-- 燈泡圖示 SVG -->
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/>
+            <path d="M9 18h6"/>
+            <path d="M10 22h4"/>
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base sm:text-xl md:text-2xl font-black tracking-tight text-slate-800">
+              燈泡結構解說圖互動式網頁
+            </h1>
+            <span class="hidden md:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+              國小自然科學
+            </span>
+          </div>
+          <p class="text-xs sm:text-sm text-slate-500 font-medium">
+            點擊或觸碰結構名稱與燈泡部位，觀察放大重點與電路通路原理
+          </p>
+        </div>
+      </div>
+
+      <!-- 教學輔助控制按鈕群 -->
+      <div class="flex items-center gap-2 sm:gap-3 ml-auto sm:ml-0">
+        <!-- 通電點亮燈泡開關 -->
+        <button
+          id="btn-power-toggle"
+          type="button"
+          aria-pressed="false"
+          class="flex items-center gap-2 px-3.5 sm:px-4 py-2.5 rounded-2xl font-bold text-sm sm:text-base border-2 border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 shadow-xs transition-all active:scale-95 cursor-pointer"
+        >
+          <span id="power-icon" class="text-lg leading-none">💡</span>
+          <span id="power-label">通電點亮燈泡</span>
+          <span id="power-pill" class="ml-0.5 px-2 py-0.5 text-xs rounded-full bg-slate-200 text-slate-600 font-bold transition-colors">
+            關
+          </span>
+        </button>
+
+        <!-- 重置檢視按鈕 -->
+        <button
+          id="btn-reset"
+          type="button"
+          class="flex items-center gap-1.5 px-3 sm:px-4 py-2.5 rounded-2xl font-bold text-sm sm:text-base border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 shadow-xs transition-all active:scale-95 cursor-pointer"
+          title="取消選取並恢復全圖檢視"
+        >
+          <svg class="w-4 h-4 sm:w-5 sm:h-5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+            <path d="M3 3v5h5"/>
+          </svg>
+          <span>重置檢視</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主要互動教學工作區 -->
+  <main class="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-5 flex flex-col justify-center">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
+
+      <!-- 左側／中央：燈泡構造互動圖舞台（含兩側結構標籤與動態指示線） -->
+      <section class="lg:col-span-7 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-3 sm:p-5 flex flex-col justify-between relative overflow-hidden">
+        <!-- 頂部狀態提示條 -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100 z-10">
+          <div class="flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-600">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+            <span>互動構造圖（支援滑鼠懸停、點擊與平板觸控）</span>
+          </div>
+          <div id="circuit-status-badge" class="hidden items-center gap-1.5 px-3 py-1 rounded-full bg-amber-100 border border-amber-300 text-amber-900 text-xs sm:text-sm font-bold">
+            <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+            <span>通路形成！電流通過燈絲發光</span>
+          </div>
+        </div>
+
+        <!-- 圖解主舞台：左側標籤 + 中央SVG燈泡 + 右側標籤 + 動態指示線層 -->
+        <div id="diagram-stage" class="relative w-full my-auto py-2 sm:py-3 flex flex-col sm:flex-row items-center justify-between gap-2 sm:gap-1 min-h-[340px] sm:min-h-[420px]">
+
+          <!-- 動態 SVG 指示線覆蓋層（在平板與電腦螢幕自動精準連線） -->
+          <svg id="leader-overlay" class="hidden sm:block absolute inset-0 w-full h-full pointer-events-none z-10" aria-hidden="true"></svg>
+
+          <!-- 左側結構標籤欄（桌面與平板顯示於左側） -->
+          <div class="hidden sm:flex flex-col justify-around h-full py-8 gap-12 z-20 shrink-0 w-[132px] md:w-[152px]">
+            <!-- 1. 玻璃罩 -->
+            <button
+              type="button"
+              data-part="glass"
+              id="btn-desktop-glass"
+              class="label-btn w-full min-h-[54px] px-3 py-2.5 rounded-2xl bg-slate-50 hover:bg-blue-50 border-2 border-slate-300 text-slate-800 font-bold text-base md:text-lg shadow-xs flex items-center justify-between gap-1.5 cursor-pointer"
+            >
+              <span class="btn-badge w-6 h-6 rounded-lg bg-slate-200 text-slate-700 text-xs font-black flex items-center justify-center shrink-0">1</span>
+              <span class="flex-1 text-center">玻璃罩</span>
+            </button>
+
+            <!-- 4. 螺紋狀金屬體 -->
+            <button
+              type="button"
+              data-part="metal"
+              id="btn-desktop-metal"
+              class="label-btn w-full min-h-[54px] px-2.5 py-2.5 rounded-2xl bg-slate-50 hover:bg-blue-50 border-2 border-slate-300 text-slate-800 font-bold text-sm md:text-base shadow-xs flex items-center justify-between gap-1 cursor-pointer"
+            >
+              <span class="btn-badge w-6 h-6 rounded-lg bg-slate-200 text-slate-700 text-xs font-black flex items-center justify-center shrink-0">4</span>
+              <span class="flex-1 text-center leading-tight">螺紋狀金屬體</span>
+            </button>
+          </div>
+
+          <!-- 中央燈泡結構 SVG（忠實還原上傳草圖比例與內部線路連接） -->
+          <div class="relative flex-1 flex items-center justify-center w-full max-w-[330px] sm:max-w-[360px] mx-auto z-20">
+            <svg
+              id="bulb-svg"
+              viewBox="0 0 360 435"
+              class="w-full h-auto max-h-[370px] sm:max-h-[420px] select-none overflow-visible"
+              role="img"
+              aria-label="燈泡內部結構圖：包含玻璃罩、燈絲、導線兩條、螺紋狀金屬體與連接點"
+            >
+              <defs>
+                <!-- 玻璃罩半透明立體漸層 -->
+                <radialGradient id="glassGrad" cx="40%" cy="35%" r="65%">
+                  <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.72" />
+                  <stop offset="65%" stop-color="#E0F2FE" stop-opacity="0.34" />
+                  <stop offset="100%" stop-color="#BAE6FD" stop-opacity="0.45" />
+                </radialGradient>
+
+                <!-- 通電時的溫暖光暈 -->
+                <radialGradient id="bulbGlowGrad" cx="50%" cy="42%" r="52%">
+                  <stop offset="0%" stop-color="#FEF08A" stop-opacity="0.95" />
+                  <stop offset="45%" stop-color="#FDE047" stop-opacity="0.52" />
+                  <stop offset="85%" stop-color="#F59E0B" stop-opacity="0.14" />
+                  <stop offset="100%" stop-color="#F59E0B" stop-opacity="0" />
+                </radialGradient>
+
+                <!-- 螺紋狀金屬體銀藍漸層 -->
+                <linearGradient id="metalGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#CBD5E1" stop-opacity="0.42" />
+                  <stop offset="30%" stop-color="#F8FAFC" stop-opacity="0.68" />
+                  <stop offset="70%" stop-color="#E2E8F0" stop-opacity="0.55" />
+                  <stop offset="100%" stop-color="#94A3B8" stop-opacity="0.45" />
+                </linearGradient>
+
+                <!-- 連接點金屬漸層 -->
+                <linearGradient id="contactGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#CBD5E1" stop-opacity="0.65" />
+                  <stop offset="50%" stop-color="#F1F5F9" stop-opacity="0.85" />
+                  <stop offset="100%" stop-color="#94A3B8" stop-opacity="0.65" />
+                </linearGradient>
+              </defs>
+
+              <!-- 0. 上方 5 條微彎放射狀光線線條（還原上傳草圖） -->
+              <g id="light-rays" stroke="#3B66A8" stroke-width="2.2" fill="none" stroke-linecap="round">
+                <!-- 左外側光線 -->
+                <path d="M 112 91 Q 105 81, 95 79 T 79 62 T 61 42" />
+                <!-- 左內側光線 -->
+                <path d="M 145 71 Q 138 60, 133 49 T 123 26" />
+                <!-- 正上方光線 -->
+                <path d="M 186 67 Q 189 55, 184 42 T 190 17" />
+                <!-- 右內側光線 -->
+                <path d="M 227 72 Q 228 55, 239 49 T 271 38" />
+                <!-- 右外側光線 -->
+                <path d="M 268 95 Q 277 88, 279 79 T 296 71 T 310 69" />
+              </g>
+
+              <!-- 通電發光光暈（預設隱藏，通電時亮起） -->
+              <ellipse
+                id="bulb-glow-aura"
+                cx="180"
+                cy="168"
+                rx="118"
+                ry="102"
+                fill="url(#bulbGlowGrad)"
+                opacity="0"
+                class="pointer-events-none transition-opacity duration-500"
+              />
+
+              <!-- 4. 螺紋狀金屬體 (#part-metal) -->
+              <g id="part-metal" class="bulb-part" data-part="metal" role="button" tabindex="0" aria-label="螺紋狀金屬體">
+                <!-- 擴大觸控感應區域 -->
+                <rect x="98" y="224" width="164" height="154" rx="26" ry="26" fill="transparent" />
+                <!-- 主體圓角矩形（與玻璃罩底部微幅重疊） -->
+                <rect
+                  x="104"
+                  y="228"
+                  width="152"
+                  height="146"
+                  rx="24"
+                  ry="24"
+                  fill="url(#metalGrad)"
+                  stroke="#4472C4"
+                  stroke-width="2.5"
+                />
+                <!-- 極淡的橫向螺紋細節線（呼應「螺紋狀」同時保持原圖簡潔圓角矩形輪廓） -->
+                <g stroke="#64748B" stroke-width="1.3" stroke-linecap="round" opacity="0.28">
+                  <path d="M 114 264 Q 180 270, 246 264" fill="none" />
+                  <path d="M 112 290 Q 180 296, 248 290" fill="none" />
+                  <path d="M 112 316 Q 180 322, 248 316" fill="none" />
+                  <path d="M 114 342 Q 180 348, 246 342" fill="none" />
+                </g>
+                <!-- 指示線錨點 -->
+                <circle class="anchor-point" data-anchor="metal" cx="104" cy="276" r="3.5" fill="#2563EB" opacity="0" />
+              </g>
+
+              <!-- 1. 玻璃罩 (#part-glass)：大型橢圓形外框，底部微幅重疊螺紋狀金屬體 -->
+              <g id="part-glass" class="bulb-part" data-part="glass" role="button" tabindex="0" aria-label="玻璃罩">
+                <ellipse
+                  cx="180"
+                  cy="172"
+                  rx="102"
+                  ry="86"
+                  fill="url(#glassGrad)"
+                  stroke="#6D6864"
+                  stroke-width="3.2"
+                />
+                <!-- 玻璃高光反光弧線 -->
+                <path
+                  d="M 108 148 A 76 62 0 0 1 154 102"
+                  fill="none"
+                  stroke="#FFFFFF"
+                  stroke-width="3.5"
+                  stroke-linecap="round"
+                  opacity="0.7"
+                />
+                <!-- 指示線錨點 -->
+                <circle class="anchor-point" data-anchor="glass" cx="80" cy="152" r="3.5" fill="#2563EB" opacity="0" />
+              </g>
+
+              <!-- 5. 連接點 (#part-contact)：位於螺紋狀金屬體最底部中央的小型圓角矩形 -->
+              <g id="part-contact" class="bulb-part" data-part="contact" role="button" tabindex="0" aria-label="連接點">
+                <!-- 擴大觸控感應區域 -->
+                <rect x="136" y="368" width="88" height="46" rx="12" ry="12" fill="transparent" />
+                <rect
+                  x="144"
+                  y="374"
+                  width="72"
+                  height="34"
+                  rx="8"
+                  ry="8"
+                  fill="url(#contactGrad)"
+                  stroke="#4472C4"
+                  stroke-width="2.5"
+                />
+                <!-- 指示線錨點 -->
+                <circle class="anchor-point" data-anchor="contact" cx="216" cy="391" r="3.5" fill="#2563EB" opacity="0" />
+              </g>
+
+              <!-- 2. 燈絲 (#part-filament)：僅包含玻璃罩中央偏上的橘色弧形燈絲線段 -->
+              <g id="part-filament" class="bulb-part" data-part="filament" role="button" tabindex="0" aria-label="燈絲">
+                <!-- 擴大觸控感應區域 -->
+                <path
+                  d="M 124 175 Q 180 112, 236 171"
+                  fill="none"
+                  stroke="transparent"
+                  stroke-width="26"
+                  stroke-linecap="round"
+                />
+                <!-- 橘色弧形燈絲（兩端微幅延伸超出藍色接點，忠實還原原圖） -->
+                <path
+                  id="filament-arc"
+                  d="M 126 174 Q 180 115, 234 170"
+                  fill="none"
+                  stroke="#ED7D31"
+                  stroke-width="3.6"
+                  stroke-linecap="round"
+                />
+                <!-- 指示線錨點：精準對齊橘色弧形燈絲正上方中央頂點 -->
+                <circle class="anchor-point" data-anchor="filament" cx="180" cy="143.5" r="3.5" fill="#2563EB" opacity="0" />
+              </g>
+
+              <!-- 3. 導線兩條 (#part-wires)：包含兩條深藍色導線以及頂端固定燈絲的兩個藍色實心橢圓接點 -->
+              <g id="part-wires" class="bulb-part" data-part="wires" role="button" tabindex="0" aria-label="導線兩條">
+                <!-- 寬觸控透明路徑與接點感應區（方便滑鼠與平板手指輕鬆點擊） -->
+                <path
+                  d="M 140 160 C 154 195, 168 250, 168 312 C 168 342, 152 342, 104 318"
+                  fill="none"
+                  stroke="transparent"
+                  stroke-width="22"
+                  stroke-linecap="round"
+                />
+                <path
+                  d="M 220 159 C 220 220, 220 295, 217 345 C 215 378, 208 396, 196 408"
+                  fill="none"
+                  stroke="transparent"
+                  stroke-width="22"
+                  stroke-linecap="round"
+                />
+                <circle cx="140" cy="156" r="16" fill="transparent" />
+                <circle cx="220" cy="155" r="16" fill="transparent" />
+
+                <!-- 左側藍色導線：從左側藍色接點向下延伸進入金屬體後向左彎曲，精準接觸螺紋狀金屬體左側內壁 -->
+                <path
+                  id="wire-left"
+                  d="M 140 160 C 154 195, 168 250, 168 312 C 168 342, 152 342, 104 318"
+                  fill="none"
+                  stroke="#2F5597"
+                  stroke-width="3.8"
+                  stroke-linecap="round"
+                />
+                <!-- 左側導線末端接觸點標記 -->
+                <circle cx="105" cy="318" r="4.2" fill="#2F5597" />
+
+                <!-- 右側藍色導線：從右側藍色接點近乎筆直向下延伸，穿過金屬體底部，精準接觸最下方連接點底部 -->
+                <path
+                  id="wire-right"
+                  d="M 220 159 C 220 220, 220 295, 217 345 C 215 378, 208 396, 196 408"
+                  fill="none"
+                  stroke="#2F5597"
+                  stroke-width="3.8"
+                  stroke-linecap="round"
+                />
+                <!-- 右側導線末端接觸點標記 -->
+                <circle cx="196" cy="407" r="4.2" fill="#2F5597" />
+
+                <!-- 左側藍色橢圓接點（合併至導線結構，負責固定並連接燈絲左端） -->
+                <ellipse
+                  cx="140"
+                  cy="156"
+                  rx="5.5"
+                  ry="11"
+                  fill="#4472C4"
+                  stroke="#2F5597"
+                  stroke-width="1.5"
+                />
+                <!-- 右側藍色橢圓接點（合併至導線結構，負責固定並連接燈絲右端） -->
+                <ellipse
+                  cx="220"
+                  cy="155"
+                  rx="5.5"
+                  ry="11"
+                  fill="#4472C4"
+                  stroke="#2F5597"
+                  stroke-width="1.5"
+                />
+
+                <!-- 指示線錨點 -->
+                <circle class="anchor-point" data-anchor="wires" cx="220" cy="238" r="3.5" fill="#2563EB" opacity="0" />
+              </g>
+            </svg>
+          </div>
+
+          <!-- 右側結構標籤欄（桌面與平板顯示於右側） -->
+          <div class="hidden sm:flex flex-col justify-between h-full py-5 gap-6 z-20 shrink-0 w-[132px] md:w-[152px]">
+            <!-- 2. 燈絲 -->
+            <button
+              type="button"
+              data-part="filament"
+              id="btn-desktop-filament"
+              class="label-btn w-full min-h-[54px] px-3 py-2.5 rounded-2xl bg-slate-50 hover:bg-blue-50 border-2 border-slate-300 text-slate-800 font-bold text-base md:text-lg shadow-xs flex items-center justify-between gap-1.5 cursor-pointer"
+            >
+              <span class="btn-badge w-6 h-6 rounded-lg bg-slate-200 text-slate-700 text-xs font-black flex items-center justify-center shrink-0">2</span>
+              <span class="flex-1 text-center">燈絲</span>
+            </button>
+
+            <!-- 3. 導線兩條 -->
+            <button
+              type="button"
+              data-part="wires"
+              id="btn-desktop-wires"
+              class="label-btn w-full min-h-[54px] px-2.5 py-2.5 rounded-2xl bg-slate-50 hover:bg-blue-50 border-2 border-slate-300 text-slate-800 font-bold text-base md:text-lg shadow-xs flex items-center justify-between gap-1.5 cursor-pointer"
+            >
+              <span class="btn-badge w-6 h-6 rounded-lg bg-slate-200 text-slate-700 text-xs font-black flex items-center justify-center shrink-0">3</span>
+              <span class="flex-1 text-center">導線兩條</span>
+            </button>
+
+            <!-- 5. 連接點 -->
+            <button
+              type="button"
+              data-part="contact"
+              id="btn-desktop-contact"
+              class="label-btn w-full min-h-[54px] px-3 py-2.5 rounded-2xl bg-slate-50 hover:bg-blue-50 border-2 border-slate-300 text-slate-800 font-bold text-base md:text-lg shadow-xs flex items-center justify-between gap-1.5 cursor-pointer"
+            >
+              <span class="btn-badge w-6 h-6 rounded-lg bg-slate-200 text-slate-700 text-xs font-black flex items-center justify-center shrink-0">5</span>
+              <span class="flex-1 text-center">連接點</span>
+            </button>
+          </div>
+
+          <!-- 手機窄螢幕專屬按鈕網格（< 640px 時自動切換為易觸控雙欄排列） -->
+          <div class="grid sm:hidden grid-cols-2 gap-2 w-full pt-2 z-20">
+            <button type="button" data-part="glass" class="label-btn min-h-[48px] px-3 py-2 rounded-xl bg-slate-50 border-2 border-slate-300 text-slate-800 font-bold text-base flex items-center gap-2">
+              <span class="btn-badge w-6 h-6 rounded-md bg-slate-200 text-slate-700 text-xs font-black flex items-center justify-center">1</span>
+              <span>玻璃罩</span>
+            </button>
+            <button type="button" data-part="filament" class="label-btn min-h-[48px] px-3 py-2 rounded-xl bg-slate-50 border-2 border-slate-300 text-slate-800 font-bold text-base flex items-center gap-2">
+              <span class="btn-badge w-6 h-6 rounded-md bg-slate-200 text-slate-700 text-xs font-black flex items-center justify-center">2</span>
+              <span>燈絲</span>
+            </button>
+            <button type="button" data-part="wires" class="label-btn min-h-[48px] px-3 py-2 rounded-xl bg-slate-50 border-2 border-slate-300 text-slate-800 font-bold text-base flex items-center gap-2">
+              <span class="btn-badge w-6 h-6 rounded-md bg-slate-200 text-slate-700 text-xs font-black flex items-center justify-center">3</span>
+              <span>導線兩條</span>
+            </button>
+            <button type="button" data-part="metal" class="label-btn min-h-[48px] px-3 py-2 rounded-xl bg-slate-50 border-2 border-slate-300 text-slate-800 font-bold text-base flex items-center gap-2">
+              <span class="btn-badge w-6 h-6 rounded-md bg-slate-200 text-slate-700 text-xs font-black flex items-center justify-center">4</span>
+              <span>螺紋狀金屬體</span>
+            </button>
+            <button type="button" data-part="contact" class="label-btn col-span-2 min-h-[48px] px-3 py-2 rounded-xl bg-slate-50 border-2 border-slate-300 text-slate-800 font-bold text-base flex items-center justify-center gap-2">
+              <span class="btn-badge w-6 h-6 rounded-md bg-slate-200 text-slate-700 text-xs font-black flex items-center justify-center">5</span>
+              <span>連接點</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 底部操作指引 -->
+        <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs sm:text-sm text-slate-500">
+          <span>💡 提示：點擊任一結構名稱，對應部位會自動放大並跳動強調</span>
+          <span id="active-part-indicator" class="font-bold text-blue-600">目前檢視：全圖總覽</span>
+        </div>
+      </section>
+
+      <!-- 右側：即時結構知識解說卡片 -->
+      <aside class="lg:col-span-5 flex flex-col">
+        <div id="info-card" class="flex-1 bg-white rounded-3xl border border-slate-200/90 shadow-sm p-5 sm:p-6 flex flex-col justify-between">
+          <!-- 卡片內容區（動態更新） -->
+          <div id="info-card-body" class="space-y-4">
+            <!-- 預設總覽狀態內容，會在 JS 初始化時渲染 -->
+          </div>
+
+          <!-- 課堂步進導覽列（方便老師投影或學生依序學習 1~5 構造） -->
+          <div class="pt-5 mt-5 border-t border-slate-100 flex items-center justify-between gap-2">
+            <button
+              id="btn-prev-part"
+              type="button"
+              class="min-h-[46px] px-3.5 sm:px-4 py-2 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm sm:text-base transition-all active:scale-95 flex items-center gap-1 cursor-pointer"
+            >
+              <span>◀</span>
+              <span>上一個構造</span>
+            </button>
+
+            <!-- 5 個構造進度圓點 -->
+            <div class="flex items-center gap-2" aria-label="構造導覽進度">
+              <button type="button" data-part="glass" class="step-dot w-3 h-3 rounded-full bg-slate-300 transition-all cursor-pointer" aria-label="第1項：玻璃罩"></button>
+              <button type="button" data-part="filament" class="step-dot w-3 h-3 rounded-full bg-slate-300 transition-all cursor-pointer" aria-label="第2項：燈絲"></button>
+              <button type="button" data-part="wires" class="step-dot w-3 h-3 rounded-full bg-slate-300 transition-all cursor-pointer" aria-label="第3項：導線兩條"></button>
+              <button type="button" data-part="metal" class="step-dot w-3 h-3 rounded-full bg-slate-300 transition-all cursor-pointer" aria-label="第4項：螺紋狀金屬體"></button>
+              <button type="button" data-part="contact" class="step-dot w-3 h-3 rounded-full bg-slate-300 transition-all cursor-pointer" aria-label="第5項：連接點"></button>
+            </div>
+
+            <button
+              id="btn-next-part"
+              type="button"
+              class="min-h-[46px] px-3.5 sm:px-4 py-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm sm:text-base shadow-xs transition-all active:scale-95 flex items-center gap-1 cursor-pointer"
+            >
+              <span>下一個構造</span>
+              <span>▶</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+    </div>
+  </main>
+
+  <script>
+    /**
+     * 燈泡五個核心構造的完整教學資料庫（國小自然科學課程標準）
+     */
+    const PART_ORDER = ['glass', 'filament', 'wires', 'metal', 'contact'];
+
+    const PARTS_DATA = {
+      overview: {
+        number: '總覽',
+        title: '認識小燈泡的五大構造',
+        subtitle: '請點選左側「結構名稱」或直接點選圖中的燈泡部位',
+        conductivity: '包含「導體」與「絕緣體」',
+        conductivityType: 'neutral',
+        location: '外部保護殼 ＋ 內部導電發光通路',
+        functionDesc:
+          '一個小小燈泡裡面藏著完整的電路設計！外部有透明的「玻璃罩」、兩側的「螺紋狀金屬體」與最底部的「連接點」；內部則由「導線兩條」把電引導至「燈絲」，形成一條完整的通路。',
+        scienceTip:
+          '試著點選上方的「💡 通電點亮燈泡」按鈕，觀察當電池兩極分別接上「連接點」與「螺紋狀金屬體」形成通路時，燈絲與燈泡發亮的情形！'
+      },
+      glass: {
+        number: '1',
+        title: '玻璃罩',
+        subtitle: '保護內部燈絲的透明外殼',
+        conductivity: '絕緣體（不導電）',
+        conductivityType: 'insulator',
+        location: '燈泡最上方的圓弧形透明外罩',
+        functionDesc:
+          '用透明玻璃製成，能讓燈絲發出的光線順利透出來，同時隔絕外界空氣，避免高溫發亮的燈絲接觸氧氣而快速燒斷，並保護內部脆弱的導線與燈絲。',
+        scienceTip:
+          '因為玻璃是絕緣體，連接電池時電線不能接在玻璃罩上，否則會形成「斷路」，燈泡不會亮喔！'
+      },
+      filament: {
+        number: '2',
+        title: '燈絲',
+        subtitle: '通電後會發熱並發出光亮的核心',
+        conductivity: '導體（高熔點鎢絲）',
+        conductivityType: 'conductor',
+        location: '玻璃罩中央偏上方的橘色弧形細絲',
+        functionDesc:
+          '通常由耐高溫的金屬「鎢」製成。當電流流過細細的燈絲時，會產生高熱並發出明亮的光芒，是小燈泡能夠發光最關鍵的部位。',
+        scienceTip:
+          '觀察看看：燈絲的兩端分別連接著兩條導線，這樣電流才能「一進一出」順利通過燈絲！'
+      },
+      wires: {
+        number: '3',
+        title: '導線兩條',
+        subtitle: '連接外部金屬接點與內部燈絲的橋梁',
+        conductivity: '導體（金屬細線與接點）',
+        conductivityType: 'conductor',
+        location: '從金屬殼內部向上延伸並以藍色接點固定燈絲兩端',
+        functionDesc:
+          '燈泡內部共有兩條彼此分開的金屬導線，頂端的藍色接點負責固定並連接燈絲兩端；下方則分別接到「螺紋狀金屬體」內側與最底部的「連接點」，負責把電傳導進燈絲。',
+        scienceTip:
+          '兩條導線在燈泡內部不會互相碰在一起，電流必須經過燈絲才能從一條導線流向另一條導線。'
+      },
+      metal: {
+        number: '4',
+        title: '螺紋狀金屬體',
+        subtitle: '燈泡側邊的金屬外殼與兩個通電接點之一',
+        conductivity: '導體（金屬材質）',
+        conductivityType: 'conductor',
+        location: '玻璃罩下方的圓筒狀金屬外殼',
+        functionDesc:
+          '由導電的金屬製成，表面設計成螺紋狀方便旋入燈座固定；同時它內部連接著其中一條導線，是讓燈泡通電的兩個重要接觸部位之一。',
+        scienceTip:
+          '點亮燈泡時，電池的其中一極（例如負極）必須用電線確實接觸到「螺紋狀金屬體」的金屬表面！'
+      },
+      contact: {
+        number: '5',
+        title: '連接點',
+        subtitle: '位於燈泡最底端的金屬接點',
+        conductivity: '導體（底部金屬凸點）',
+        conductivityType: 'conductor',
+        location: '螺紋狀金屬體最底部中央的金屬區塊',
+        functionDesc:
+          '位於燈泡最下方的金屬接觸點，內部連接著另一條導線（通往燈絲另一端），與螺紋狀金屬體之間有黑色絕緣材質隔開，避免電流直接短路。',
+        scienceTip:
+          '只有當「連接點」與「螺紋狀金屬體」分別接上電池的正極與負極時，才會形成完整通路讓燈泡發亮！'
+      }
+    };
+
+    // 互動狀態管理
+    let activePart = null;
+    let hoveredPart = null;
+    let isPowerOn = false;
+
+    // 取得常用 DOM 參考
+    const diagramStage = document.getElementById('diagram-stage');
+    const bulbSvg = document.getElementById('bulb-svg');
+    const leaderOverlay = document.getElementById('leader-overlay');
+    const infoCardBody = document.getElementById('info-card-body');
+    const activePartIndicator = document.getElementById('active-part-indicator');
+    const btnPowerToggle = document.getElementById('btn-power-toggle');
+    const powerLabel = document.getElementById('power-label');
+    const powerPill = document.getElementById('power-pill');
+    const circuitStatusBadge = document.getElementById('circuit-status-badge');
+    const btnReset = document.getElementById('btn-reset');
+    const btnPrevPart = document.getElementById('btn-prev-part');
+    const btnNextPart = document.getElementById('btn-next-part');
+
+    /**
+     * 渲染右側結構知識解說卡片內容
+     */
+    function renderInfoCard(partKey) {
+      const data = PARTS_DATA[partKey] || PARTS_DATA.overview;
+
+      let badgeStyle = 'bg-blue-50 text-blue-700 border-blue-200';
+      let badgeIcon = '⚡';
+      if (data.conductivityType === 'conductor') {
+        badgeStyle = 'bg-amber-50 text-amber-800 border-amber-300';
+        badgeIcon = '⚡';
+      } else if (data.conductivityType === 'insulator') {
+        badgeStyle = 'bg-sky-50 text-sky-800 border-sky-200';
+        badgeIcon = '🛡️';
+      } else {
+        badgeIcon = '🔍';
+      }
+
+      infoCardBody.innerHTML = `
+        <div class="card-animate space-y-4">
+          <!-- 標題與編號徽章 -->
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <span class="px-3 py-1.5 rounded-2xl bg-blue-600 text-white font-black text-sm sm:text-base shadow-xs shrink-0">
+                ${data.number === '總覽' ? '構造總覽' : `構造 ${data.number}`}
+              </span>
+              <div>
+                <h2 class="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">
+                  ${data.title}
+                </h2>
+                <p class="text-xs sm:text-sm font-medium text-slate-500 mt-0.5">
+                  ${data.subtitle}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- 導電性質與構造位置標籤 -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+            <div class="p-3 rounded-2xl border ${badgeStyle}">
+              <div class="text-xs font-bold opacity-75 mb-0.5">導電性質</div>
+              <div class="text-sm sm:text-base font-black flex items-center gap-1.5">
+                <span>${badgeIcon}</span>
+                <span>${data.conductivity}</span>
+              </div>
+            </div>
+            <div class="p-3 rounded-2xl border border-slate-200 bg-slate-50/90 text-slate-800">
+              <div class="text-xs font-bold text-slate-500 mb-0.5">構造位置</div>
+              <div class="text-sm sm:text-base font-bold leading-snug">
+                ${data.location}
+              </div>
+            </div>
+          </div>
+
+          <!-- 主要功能解說 -->
+          <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-1.5">
+            <div class="text-xs sm:text-sm font-black text-slate-700 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+              <span>結構與功能說明</span>
+            </div>
+            <p class="text-sm sm:text-base text-slate-700 leading-relaxed font-medium">
+              ${data.functionDesc}
+            </p>
+          </div>
+
+          <!-- 自然課小提醒 -->
+          <div class="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/90 space-y-1">
+            <div class="text-xs sm:text-sm font-black text-amber-900 flex items-center gap-1.5">
+              <span>💡</span>
+              <span>自然課實驗小提示</span>
+            </div>
+            <p class="text-xs sm:text-sm text-amber-900/90 leading-relaxed font-medium">
+              ${data.scienceTip}
+            </p>
+          </div>
+        </div>
+      `;
+    }
+
+    /**
+     * 觸發指定部位的 Q 彈放大脈衝動畫（支援重複點擊同一按鈕）
+     */
+    function triggerPopPulse(partKey) {
+      const partEl = document.getElementById(`part-${partKey}`);
+      if (!partEl) return;
+
+      const pulseClass =
+        partKey === 'glass' || partKey === 'metal'
+          ? 'pop-pulse-large'
+          : partKey === 'wires'
+            ? 'pop-pulse-medium'
+            : 'pop-pulse-small';
+
+      partEl.classList.remove('pop-pulse-large', 'pop-pulse-medium', 'pop-pulse-small');
+      void partEl.offsetWidth;
+      partEl.classList.add(pulseClass);
+    }
+
+    /**
+     * 選取特定燈泡部位並同步更新放大狀態、指示線與解說卡片
+     */
+    function selectPart(partKey, shouldPulse = false) {
+      activePart = partKey;
+
+      bulbSvg.classList.toggle('has-selection', Boolean(partKey));
+
+      // 更新 SVG 部位狀態
+      document.querySelectorAll('.bulb-part').forEach((el) => {
+        el.classList.toggle('is-active', el.dataset.part === partKey);
+      });
+
+      // 更新左右與手機版結構按鈕狀態
+      document.querySelectorAll('.label-btn').forEach((btn) => {
+        btn.classList.toggle('is-active', btn.dataset.part === partKey);
+      });
+
+      // 更新下方進度圓點狀態
+      document.querySelectorAll('.step-dot').forEach((dot) => {
+        const isCurrent = dot.dataset.part === partKey;
+        dot.classList.toggle('bg-blue-600', isCurrent);
+        dot.classList.toggle('scale-125', isCurrent);
+        dot.classList.toggle('bg-slate-300', !isCurrent);
+      });
+
+      // 更新底部目前檢視文字
+      if (partKey && PARTS_DATA[partKey]) {
+        activePartIndicator.textContent = `目前檢視：${PARTS_DATA[partKey].number}. ${PARTS_DATA[partKey].title}`;
+      } else {
+        activePartIndicator.textContent = '目前檢視：全圖總覽';
+      }
+
+      renderInfoCard(partKey || 'overview');
+
+      if (partKey && shouldPulse) {
+        triggerPopPulse(partKey);
+      }
+
+      updateLeaderLines();
+    }
+
+    /**
+     * 動態計算並繪製結構名稱按鈕到燈泡對應部位的指示線
+     */
+    function updateLeaderLines() {
+      try {
+        if (!leaderOverlay || leaderOverlay.offsetParent === null) {
+          return;
+        }
+
+        const stageRect = diagramStage.getBoundingClientRect();
+        if (stageRect.width === 0 || stageRect.height === 0) return;
+
+        leaderOverlay.setAttribute('viewBox', `0 0 ${stageRect.width} ${stageRect.height}`);
+
+        const labelMap = {
+          glass: { btnId: 'btn-desktop-glass', side: 'left' },
+          metal: { btnId: 'btn-desktop-metal', side: 'left' },
+          filament: { btnId: 'btn-desktop-filament', side: 'right' },
+          wires: { btnId: 'btn-desktop-wires', side: 'right' },
+          contact: { btnId: 'btn-desktop-contact', side: 'right' }
+        };
+
+        let svgMarkup = '';
+
+        PART_ORDER.forEach((part) => {
+          const config = labelMap[part];
+          const btnEl = document.getElementById(config.btnId);
+          const anchorEl = bulbSvg.querySelector(`.anchor-point[data-anchor="${part}"]`);
+          if (!btnEl || !anchorEl) return;
+
+          const btnRect = btnEl.getBoundingClientRect();
+          const anchorRect = anchorEl.getBoundingClientRect();
+
+          const x1 =
+            config.side === 'left'
+              ? btnRect.right - stageRect.left
+              : btnRect.left - stageRect.left;
+          const y1 = btnRect.top + btnRect.height / 2 - stageRect.top;
+
+          const x2 = anchorRect.left + anchorRect.width / 2 - stageRect.left;
+          const y2 = anchorRect.top + anchorRect.height / 2 - stageRect.top;
+
+          const elbowX = config.side === 'left' ? x1 + 14 : x1 - 14;
+          const isHighlighted = activePart === part || hoveredPart === part;
+
+          const strokeColor = isHighlighted ? '#2563EB' : '#94A3B8';
+          const strokeWidth = isHighlighted ? '2.6' : '1.6';
+          const dotRadius = isHighlighted ? '4.5' : '3.2';
+          const lineClass = isHighlighted ? 'leader-line-active' : '';
+
+          svgMarkup += `
+            <polyline
+              points="${x1.toFixed(1)},${y1.toFixed(1)} ${elbowX.toFixed(1)},${y1.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}"
+              fill="none"
+              stroke="${strokeColor}"
+              stroke-width="${strokeWidth}"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="${lineClass}"
+            />
+            <circle
+              cx="${x2.toFixed(1)}"
+              cy="${y2.toFixed(1)}"
+              r="${dotRadius}"
+              fill="${strokeColor}"
+            />
+          `;
+        });
+
+        leaderOverlay.innerHTML = svgMarkup;
+      } catch (err) {
+        console.error('更新指示線時發生錯誤:', err);
+      }
+    }
+
+    /**
+     * 切換「通電點亮燈泡」模式（僅點亮燈絲與燈泡光暈，不顯示單向移動光點）
+     */
+    function togglePowerMode() {
+      isPowerOn = !isPowerOn;
+      btnPowerToggle.setAttribute('aria-pressed', isPowerOn ? 'true' : 'false');
+
+      if (isPowerOn) {
+        bulbSvg.classList.add('power-on');
+        btnPowerToggle.classList.remove('bg-amber-50', 'border-amber-300', 'text-amber-900');
+        btnPowerToggle.classList.add('bg-amber-400', 'border-amber-500', 'text-slate-950', 'shadow-md');
+        powerLabel.textContent = '切斷電源';
+        powerPill.textContent = '開';
+        powerPill.classList.remove('bg-slate-200', 'text-slate-600');
+        powerPill.classList.add('bg-amber-900', 'text-amber-100');
+        circuitStatusBadge.classList.remove('hidden');
+        circuitStatusBadge.classList.add('inline-flex');
+      } else {
+        bulbSvg.classList.remove('power-on');
+        btnPowerToggle.classList.add('bg-amber-50', 'border-amber-300', 'text-amber-900');
+        btnPowerToggle.classList.remove('bg-amber-400', 'border-amber-500', 'text-slate-950', 'shadow-md');
+        powerLabel.textContent = '通電點亮燈泡';
+        powerPill.textContent = '關';
+        powerPill.classList.add('bg-slate-200', 'text-slate-600');
+        powerPill.classList.remove('bg-amber-900', 'text-amber-100');
+        circuitStatusBadge.classList.add('hidden');
+        circuitStatusBadge.classList.remove('inline-flex');
+      }
+    }
+
+    /**
+     * 綁定所有滑鼠、平板觸控與鍵盤無障礙事件
+     */
+    function bindInteractiveEvents() {
+      // 1. 結構名稱按鈕與進度圓點事件
+      document.querySelectorAll('.label-btn, .step-dot').forEach((btn) => {
+        const part = btn.dataset.part;
+
+        btn.addEventListener('mouseenter', () => {
+          hoveredPart = part;
+          const targetEl = document.getElementById(`part-${part}`);
+          if (targetEl) targetEl.classList.add('is-hovered');
+          updateLeaderLines();
+        });
+
+        btn.addEventListener('mouseleave', () => {
+          hoveredPart = null;
+          const targetEl = document.getElementById(`part-${part}`);
+          if (targetEl) targetEl.classList.remove('is-hovered');
+          updateLeaderLines();
+        });
+
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectPart(part, true);
+        });
+      });
+
+      // 2. 直接點擊或懸停 SVG 燈泡各部位
+      document.querySelectorAll('.bulb-part').forEach((partEl) => {
+        const part = partEl.dataset.part;
+
+        partEl.addEventListener('mouseenter', () => {
+          hoveredPart = part;
+          partEl.classList.add('is-hovered');
+          updateLeaderLines();
+        });
+
+        partEl.addEventListener('mouseleave', () => {
+          hoveredPart = null;
+          partEl.classList.remove('is-hovered');
+          updateLeaderLines();
+        });
+
+        partEl.addEventListener('click', (e) => {
+          e.stopPropagation();
+          selectPart(part, true);
+        });
+
+        partEl.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            selectPart(part, true);
+          }
+        });
+      });
+
+      // 3. 點擊舞台空白處可取消單一選取、回到全圖總覽
+      diagramStage.addEventListener('click', (e) => {
+        if (e.target === diagramStage || e.target === bulbSvg) {
+          selectPart(null, false);
+        }
+      });
+
+      // 4. 頂部控制按鈕：通電點亮與重置檢視
+      btnPowerToggle.addEventListener('click', togglePowerMode);
+      btnReset.addEventListener('click', () => {
+        selectPart(null, false);
+      });
+
+      // 5. 右側卡片底部的「上一個／下一個構造」課堂導覽按鈕
+      btnPrevPart.addEventListener('click', () => {
+        if (!activePart) {
+          selectPart(PART_ORDER[PART_ORDER.length - 1], true);
+          return;
+        }
+        const currentIdx = PART_ORDER.indexOf(activePart);
+        const prevIdx = (currentIdx - 1 + PART_ORDER.length) % PART_ORDER.length;
+        selectPart(PART_ORDER[prevIdx], true);
+      });
+
+      btnNextPart.addEventListener('click', () => {
+        if (!activePart) {
+          selectPart(PART_ORDER[0], true);
+          return;
+        }
+        const currentIdx = PART_ORDER.indexOf(activePart);
+        const nextIdx = (currentIdx + 1) % PART_ORDER.length;
+        selectPart(PART_ORDER[nextIdx], true);
+      });
+
+      // 6. 視窗縮放或螢幕旋轉時重新對齊動態指示線
+      window.addEventListener('resize', () => {
+        requestAnimationFrame(updateLeaderLines);
+      });
+    }
+
+    // 頁面載入完成後初始化互動功能
+    window.addEventListener('DOMContentLoaded', () => {
+      renderInfoCard('overview');
+      bindInteractiveEvents();
+      // 延遲一幀確保版面與字體完成排版後精準繪製指示線
+      requestAnimationFrame(() => {
+        updateLeaderLines();
+        setTimeout(updateLeaderLines, 150);
+      });
+    });
+  </script>
+</body>
+</html>
