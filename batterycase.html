@@ -190,6 +190,15 @@
             <span>⚡</span>
             <span>通路組裝模擬</span>
           </button>
+          <button
+            id="btn-mode-c"
+            type="button"
+            onclick="switchMode('C')"
+            class="touch-btn flex-1 sm:flex-initial px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5"
+          >
+            <span>🔧</span>
+            <span>電線與電池裝卸技巧</span>
+          </button>
         </div>
 
         <button
@@ -210,7 +219,7 @@
   </header>
 
   <!-- 主內容雙欄自適應佈局 -->
-  <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-4 py-4 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+  <main id="main-explorer" class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-4 py-4 grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
 
     <!-- 左側／上方：互動式高解析度 SVG 圖解畫布 (佔 7 欄) -->
     <section class="lg:col-span-7 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
@@ -1232,6 +1241,2532 @@
     </aside>
   </main>
 
+  <!-- 分頁三：電線固定與電池裝卸技巧動畫（獨立載入於 iframe，避免與主程式互相干擾） -->
+  <section id="main-technique" class="hidden flex-1 w-full">
+    <iframe id="technique-frame" title="電線固定與電池裝卸技巧動畫模擬" class="w-full border-0 block" style="height:900px" data-srcdoc="<!DOCTYPE html>
+<html lang=&quot;zh-Hant&quot;>
+<head>
+  <meta charset=&quot;UTF-8&quot; />
+  <meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1.0&quot; />
+  <title>自然科學實驗操作動畫模擬：電線固定與電池裝卸技巧</title>
+  <!-- Tailwind CSS -->
+  <script src=&quot;https://cdn.tailwindcss.com&quot;></script>
+  <!-- Google Fonts: Noto Sans TC &amp; Inter -->
+  <link rel=&quot;preconnect&quot; href=&quot;https://fonts.googleapis.com&quot;>
+  <link rel=&quot;preconnect&quot; href=&quot;https://fonts.gstatic.com&quot; crossorigin>
+  <link href=&quot;https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Noto+Sans+TC:wght@400;500;700;900&amp;display=swap&quot; rel=&quot;stylesheet&quot;>
+  <style>
+    body {
+      font-family: 'Inter', 'Noto Sans TC', sans-serif;
+      background-color: #F1F5F9;
+      color: #1E293B;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    /* 自訂時間軸滑桿樣式 */
+    input[type=&quot;range&quot;].scrubber {
+      -webkit-appearance: none;
+      appearance: none;
+      background: transparent;
+      cursor: pointer;
+    }
+    input[type=&quot;range&quot;].scrubber::-webkit-slider-runnable-track {
+      height: 10px;
+      border-radius: 999px;
+      background: #E2E8F0;
+    }
+    input[type=&quot;range&quot;].scrubber::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #2563EB;
+      border: 3px solid #FFFFFF;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.45);
+      margin-top: -6px;
+      transition: transform 0.12s ease, background-color 0.15s ease;
+    }
+    input[type=&quot;range&quot;].scrubber::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      background: #1D4ED8;
+    }
+    input[type=&quot;range&quot;].scrubber::-moz-range-track {
+      height: 10px;
+      border-radius: 999px;
+      background: #E2E8F0;
+    }
+    input[type=&quot;range&quot;].scrubber::-moz-range-thumb {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #2563EB;
+      border: 3px solid #FFFFFF;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.45);
+    }
+
+    /* 細緻捲軸 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F1F5F9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 999px;
+    }
+  </style>
+<style>body{min-height:0!important}header.sticky{position:static!important}</style>
+</head>
+<body class=&quot;min-h-screen flex flex-col&quot;>
+
+  <!-- 頂部標題與模組切換列 -->
+  <header class=&quot;bg-white border-b border-slate-200 shadow-sm sticky top-0 z-30&quot;>
+    <div class=&quot;max-w-7xl mx-auto px-3 sm:px-6 py-3 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3&quot;>
+      <!-- 標題區 -->
+      <div class=&quot;flex items-center gap-3&quot;>
+        <div class=&quot;w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center text-white shadow-md shrink-0&quot;>
+          <svg class=&quot;w-6 h-6&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2.2&quot; viewBox=&quot;0 0 24 24&quot;>
+            <path stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; d=&quot;M13 10V3L4 14h7v7l9-11h-7z&quot; />
+          </svg>
+        </div>
+        <div>
+          <h1 class=&quot;text-base sm:text-xl font-bold text-slate-900 tracking-tight leading-snug&quot;>
+            自然科學實驗操作動畫模擬：電線固定與電池裝卸技巧
+          </h1>
+          <p class=&quot;text-xs text-slate-500 hidden sm:block&quot;>
+            國小／國中自然科學電路實驗互動教具・支援關鍵影格拖曳與正誤操作對比
+          </p>
+        </div>
+      </div>
+
+      <!-- 兩大模擬模組分頁切換 -->
+      <nav class=&quot;grid grid-cols-1 sm:grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-2xl border border-slate-200/80&quot;>
+        <button id=&quot;tabModule1&quot; onclick=&quot;switchModule(1)&quot;
+          class=&quot;px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 bg-white text-blue-700 shadow-sm ring-1 ring-slate-200&quot;>
+          <span class=&quot;w-5 h-5 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center shrink-0&quot;>1</span>
+          <span>電線穿孔與反向纏繞固定（燈泡座）</span>
+        </button>
+        <button id=&quot;tabModule2&quot; onclick=&quot;switchModule(2)&quot;
+          class=&quot;px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 text-slate-600 hover:text-slate-900&quot;>
+          <span class=&quot;w-5 h-5 rounded-full bg-slate-300 text-slate-700 text-xs flex items-center justify-center shrink-0&quot;>2</span>
+          <span>電池 45° 壓彈簧裝入與正極提出（電池盒）</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 主要互動教學工作區 -->
+  <main class=&quot;flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 py-4 flex flex-col lg:flex-row gap-4&quot;>
+
+    <!-- 左側／上方：高解析度互動模擬畫布與控制列 -->
+    <section class=&quot;flex-1 flex flex-col bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden&quot;>
+
+      <!-- 畫布頂部功能子列（子模式切換 + 正確/錯誤對比開關） -->
+      <div class=&quot;px-3 sm:px-5 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2&quot;>
+        <!-- 左側：模組二專屬子模式切換 / 模組一放大鏡開關 -->
+        <div id=&quot;subModeContainer&quot; class=&quot;flex items-center gap-2&quot;>
+          <!-- 動態由 JS 填充 -->
+        </div>
+
+        <!-- 右側：正確做法 vs 常見錯誤對比切換開關 -->
+        <div class=&quot;flex items-center gap-2 ml-auto&quot;>
+          <span class=&quot;text-xs font-semibold text-slate-500 hidden md:inline&quot;>操作模式對比：</span>
+          <div class=&quot;inline-flex rounded-xl bg-slate-200/80 p-1 border border-slate-300/60&quot;>
+            <button id=&quot;btnModeCorrect&quot; onclick=&quot;setErrorMode(false)&quot;
+              class=&quot;px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-emerald-600 text-white shadow-sm&quot;>
+              <span>✓ 正確標準做法</span>
+            </button>
+            <button id=&quot;btnModeError&quot; onclick=&quot;setErrorMode(true)&quot;
+              class=&quot;px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-600 hover:text-rose-700&quot;>
+              <span>⚠ 常見錯誤示範</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 畫布容器 -->
+      <div id=&quot;canvasWrapper&quot; class=&quot;relative w-full flex-1 min-h-[330px] sm:min-h-[430px] lg:min-h-[480px] bg-[#F8FAFC] flex items-center justify-center overflow-hidden&quot;>
+        <canvas id=&quot;simCanvas&quot; class=&quot;w-full h-full block cursor-grab active:cursor-grabbing&quot;></canvas>
+
+        <!-- 左下角圖例提示 -->
+        <div class=&quot;absolute bottom-3 left-3 flex flex-wrap items-center gap-2 pointer-events-none&quot;>
+          <span class=&quot;px-2.5 py-1 rounded-lg bg-white/90 backdrop-blur border border-slate-200 text-[11px] font-medium text-slate-600 shadow-sm flex items-center gap-1.5&quot;>
+            <span class=&quot;w-2.5 h-2.5 rounded-full bg-red-500 inline-block&quot;></span> 正極 (+) / 施力方向
+          </span>
+          <span class=&quot;px-2.5 py-1 rounded-lg bg-white/90 backdrop-blur border border-slate-200 text-[11px] font-medium text-slate-600 shadow-sm flex items-center gap-1.5&quot;>
+            <span class=&quot;w-2.5 h-2.5 rounded-full bg-blue-500 inline-block&quot;></span> 負極 (-) / 彈簧端
+          </span>
+        </div>
+      </div>
+
+      <!-- 底部時間軸進度條與播放控制列 -->
+      <div class=&quot;px-3 sm:px-5 py-3.5 bg-white border-t border-slate-200 space-y-3&quot;>
+        <!-- 連續時間軸進度條 (Scrubber) -->
+        <div class=&quot;space-y-1&quot;>
+          <div class=&quot;flex items-center justify-between text-xs font-semibold text-slate-500&quot;>
+            <span id=&quot;scrubberStepLabel&quot; class=&quot;text-blue-700 font-bold&quot;>目前進度：步驟 1</span>
+            <span id=&quot;scrubberPercentLabel&quot; class=&quot;font-mono text-slate-500&quot;>0%</span>
+          </div>
+          <div class=&quot;relative flex items-center&quot;>
+            <input id=&quot;timelineScrubber&quot; type=&quot;range&quot; min=&quot;0&quot; max=&quot;500&quot; value=&quot;0&quot; class=&quot;scrubber w-full z-10&quot; />
+            <!-- 步驟刻度標記容器 -->
+            <div id=&quot;scrubberTicks&quot; class=&quot;absolute inset-x-2.5 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none&quot;></div>
+          </div>
+        </div>
+
+        <!-- 播放按鈕控制列 -->
+        <div class=&quot;flex flex-wrap items-center justify-between gap-2 pt-0.5&quot;>
+          <!-- 左側：重新播放 &amp; 速度切換 -->
+          <div class=&quot;flex items-center gap-1.5 sm:gap-2&quot;>
+            <button onclick=&quot;replayAnimation()&quot; title=&quot;重新播放&quot;
+              class=&quot;px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs sm:text-sm font-bold transition flex items-center gap-1.5 border border-slate-200&quot;>
+              <svg class=&quot;w-4 h-4&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2.2&quot; viewBox=&quot;0 0 24 24&quot;>
+                <path stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; d=&quot;M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15&quot; />
+              </svg>
+              <span>重新播放</span>
+            </button>
+
+            <!-- 速度切換 (0.5x / 1.0x) -->
+            <button id=&quot;btnSpeed&quot; onclick=&quot;toggleSpeed()&quot;
+              class=&quot;px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 active:scale-95 text-amber-800 border border-amber-200 text-xs sm:text-sm font-bold transition flex items-center gap-1&quot;>
+              <svg class=&quot;w-4 h-4 text-amber-600&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2.2&quot; viewBox=&quot;0 0 24 24&quot;>
+                <path stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; d=&quot;M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z&quot; />
+              </svg>
+              <span id=&quot;speedText&quot;>正常 (1.0x)</span>
+            </button>
+          </div>
+
+          <!-- 中央主要控制：上一步 / 播放暫停 / 下一步 -->
+          <div class=&quot;flex items-center gap-1.5 sm:gap-2&quot;>
+            <button onclick=&quot;prevStep()&quot;
+              class=&quot;px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs sm:text-sm font-bold transition flex items-center gap-1 border border-slate-200&quot;>
+              <svg class=&quot;w-4 h-4&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2.4&quot; viewBox=&quot;0 0 24 24&quot;>
+                <path stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; d=&quot;M15 19l-7-7 7-7&quot; />
+              </svg>
+              <span>上一步</span>
+            </button>
+
+            <button id=&quot;btnPlayPause&quot; onclick=&quot;togglePlay()&quot;
+              class=&quot;px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-xs sm:text-sm font-bold shadow-md shadow-blue-600/20 transition flex items-center gap-1.5 min-w-[108px] justify-center&quot;>
+              <svg id=&quot;iconPause&quot; class=&quot;w-4 h-4&quot; fill=&quot;currentColor&quot; viewBox=&quot;0 0 24 24&quot;>
+                <path d=&quot;M6 4h4v16H6V4zm8 0h4v16h-4V4z&quot; />
+              </svg>
+              <svg id=&quot;iconPlay&quot; class=&quot;w-4 h-4 hidden&quot; fill=&quot;currentColor&quot; viewBox=&quot;0 0 24 24&quot;>
+                <path d=&quot;M8 5v14l11-7z&quot; />
+              </svg>
+              <span id=&quot;playPauseText&quot;>暫停</span>
+            </button>
+
+            <button onclick=&quot;nextStep()&quot;
+              class=&quot;px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 text-xs sm:text-sm font-bold transition flex items-center gap-1 border border-slate-200&quot;>
+              <span>下一步</span>
+              <svg class=&quot;w-4 h-4&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2.4&quot; viewBox=&quot;0 0 24 24&quot;>
+                <path stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; d=&quot;M9 5l7 7-7 7&quot; />
+              </svg>
+            </button>
+          </div>
+
+          <!-- 右側：教學音效開關 -->
+          <button id=&quot;btnSound&quot; onclick=&quot;toggleSound()&quot; title=&quot;切換互動音效&quot;
+            class=&quot;p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 transition&quot;>
+            <svg id=&quot;iconSoundOn&quot; class=&quot;w-4 h-4&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2.2&quot; viewBox=&quot;0 0 24 24&quot;>
+              <path stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; d=&quot;M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z&quot; />
+            </svg>
+            <svg id=&quot;iconSoundOff&quot; class=&quot;w-4 h-4 hidden text-slate-400&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2.2&quot; viewBox=&quot;0 0 24 24&quot;>
+              <path stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; d=&quot;M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2&quot; />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 右側／下方：即時步驟解說卡片與操作清單 -->
+    <aside class=&quot;w-full lg:w-[370px] xl:w-[400px] flex flex-col gap-4 shrink-0&quot;>
+
+      <!-- 當前步驟重點解說卡片 -->
+      <div id=&quot;stepDetailCard&quot; class=&quot;bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-5 transition-colors&quot;>
+        <div class=&quot;flex items-center justify-between gap-2 mb-2.5&quot;>
+          <span id=&quot;stepBadge&quot; class=&quot;px-3 py-1 rounded-full text-xs font-extrabold bg-blue-100 text-blue-800&quot;>
+            步驟 1 / 5
+          </span>
+          <span id=&quot;modeStatusPill&quot; class=&quot;px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800&quot;>
+            標準操作示範
+          </span>
+        </div>
+
+        <h2 id=&quot;stepTitle&quot; class=&quot;text-lg sm:text-xl font-extrabold text-slate-900 mb-2&quot;>
+          步驟 1：對準金屬圈
+        </h2>
+
+        <p id=&quot;stepDescription&quot; class=&quot;text-sm text-slate-600 leading-relaxed mb-4&quot;>
+          剝好皮的銅線芯前端水平對準燈泡座右側的金屬圈圓孔。
+        </p>
+
+        <!-- 實驗科學原理 / 操作要訣提示框 -->
+        <div id=&quot;stepTipBox&quot; class=&quot;rounded-xl bg-amber-50 border border-amber-200/80 p-3.5 flex gap-2.5&quot;>
+          <div class=&quot;text-amber-600 shrink-0 mt-0.5&quot;>
+            <svg class=&quot;w-5 h-5&quot; fill=&quot;none&quot; stroke=&quot;currentColor&quot; stroke-width=&quot;2.2&quot; viewBox=&quot;0 0 24 24&quot;>
+              <path stroke-linecap=&quot;round&quot; stroke-linejoin=&quot;round&quot; d=&quot;M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z&quot; />
+            </svg>
+          </div>
+          <div>
+            <div id=&quot;stepTipTitle&quot; class=&quot;text-xs font-bold text-amber-900 mb-0.5&quot;>操作關鍵要領</div>
+            <p id=&quot;stepTipText&quot; class=&quot;text-xs text-amber-800 leading-relaxed&quot;>
+              電線前端需剝除約 2.5 公分絕緣皮，露出光亮銅線芯，才能與黃銅金屬圈緊密導電。
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 全部步驟快速跳轉目錄 -->
+      <div class=&quot;bg-white rounded-2xl border border-slate-200 shadow-sm p-4 flex-1 flex flex-col&quot;>
+        <div class=&quot;flex items-center justify-between mb-3&quot;>
+          <h3 class=&quot;text-xs font-extrabold uppercase tracking-wider text-slate-500&quot;>
+            實驗步驟總覽（點擊可直接跳轉）
+          </h3>
+          <span class=&quot;text-[11px] text-slate-400&quot;>可拖曳下方時間軸細看</span>
+        </div>
+        <div id=&quot;stepListContainer&quot; class=&quot;space-y-2 flex-1 overflow-y-auto&quot;>
+          <!-- 動態產生步驟清單 -->
+        </div>
+      </div>
+
+    </aside>
+  </main>
+
+  <script>
+    /**
+     * ============================================================================
+     * 1. 教學內容資料庫（繁體中文・符合國小／國中自然科學實驗標準）
+     * ============================================================================
+     */
+    const CURRICULUM_DATA = {
+      module1: {
+        totalSteps: 5,
+        steps: [
+          {
+            title: &quot;步驟 1：對準金屬圈圓孔&quot;,
+            desc: &quot;將前端已剝除約 2.5 公分紅色絕緣外皮的電線，把光亮的銅線芯水平對準燈泡座右側的黃銅色金屬圈圓孔。&quot;,
+            tipTitle: &quot;剝線長度要領&quot;,
+            tip: &quot;剝皮長度約 2～2.5 公分最適中：太短無法反向纏繞，太長則容易使裸露銅線與另一側電線碰觸造成短路。&quot;,
+            errorDesc: &quot;【錯誤示範預備】同樣將剝好皮的銅線對準金屬圈圓孔，準備觀察未反向纏繞時的後果。&quot;,
+            errorTip: &quot;許多同學急著接通電路，穿過孔洞後沒有進行後續的『反向螺旋纏繞』固定動作。&quot;
+          },
+          {
+            title: &quot;步驟 2：銅線芯穿過金屬圈&quot;,
+            desc: &quot;將銅線芯平順穿過金屬圈圓孔，穿出約 1.5～2 公分長度；注意紅色絕緣外皮必須停在金屬圈外側，不可卡進孔內。&quot;,
+            tipTitle: &quot;絕緣皮不入孔原則&quot;,
+            tip: &quot;塑膠絕緣皮不導電！若絕緣皮塞進金屬圈孔內，會阻隔銅線與黃銅接線環接觸，導致電路斷路。&quot;,
+            errorDesc: &quot;銅線穿過金屬圈圓孔後，沒有預留足夠的回折長度，準備直接隨意勾住。&quot;,
+            errorTip: &quot;若塑膠外皮卡入孔內或銅線穿出太短，後續便無法做出穩固的機械鎖定結構。&quot;
+          },
+          {
+            title: &quot;步驟 3：向後反折 180° 扣住&quot;,
+            desc: &quot;將穿出金屬圈的銅線前端向上並向後反折 180 度，緊緊貼合並扣住金屬圈上緣，形成一個緊實的 U 型掛鉤。&quot;,
+            tipTitle: &quot;緊貼金屬圈邊緣&quot;,
+            tip: &quot;反折時手指要捏緊轉折處，讓銅線與黃銅圈的接觸面積最大化，減少接觸電阻。&quot;,
+            errorDesc: &quot;【錯誤操作】僅將穿出的銅線隨意向上微彎勾住，沒有緊密反折，也完全不繞回主幹。&quot;,
+            errorTip: &quot;只靠單薄的 U 型勾住，銅線具有彈性，稍微一碰就會張開鬆脫！&quot;
+          },
+          {
+            title: &quot;步驟 4：反向螺旋纏繞固定&quot;,
+            desc: &quot;將反折回來的銅線頭，圍繞著「進入金屬圈前的銅線主幹」進行 3～4 圈緊密的螺旋狀反向纏繞，把金屬圈牢牢鎖死。&quot;,
+            tipTitle: &quot;為什麼要『反向纏繞』？&quot;,
+            tip: &quot;反向纏繞在銅線主幹上會形成封閉的三角形力學結構，無論從哪個方向拉扯電線，線圈只會越拉越緊，絕不鬆脫！&quot;,
+            errorDesc: &quot;【錯誤操作】省略反向纏繞步驟，線頭懸空未固定在主幹上，金屬圈處於未鎖定狀態。&quot;,
+            errorTip: &quot;缺少螺旋纏繞的摩擦力與封閉環扣，電線與金屬圈之間幾乎沒有抗拉力。&quot;
+          },
+          {
+            title: &quot;步驟 5：拉力測試與通電發光&quot;,
+            desc: &quot;輕輕向右拉扯電線進行穩固測試，反向纏繞處紋絲不動！電路穩定導通，燈泡亮起溫暖穩定的黃光。&quot;,
+            tipTitle: &quot;實驗安全檢查習慣&quot;,
+            tip: &quot;每次接好線路後，養成『輕拉確認不脫落』的好習慣，能避免實驗中途接觸不良而誤判電路故障。&quot;,
+            errorDesc: &quot;【錯誤後果】輕輕向右一拉，未纏繞的銅線立刻從金屬圈孔洞滑脫！燈泡短暫閃爍後隨即熄滅。&quot;,
+            errorTip: &quot;這就是實驗課燈泡『時亮時不亮』最常見的原因——請務必執行 3～4 圈反向纏繞！&quot;
+          }
+        ]
+      },
+      module2_install: {
+        totalSteps: 3,
+        steps: [
+          {
+            title: &quot;步驟 1：45° 角傾斜對準負極彈簧&quot;,
+            desc: &quot;手拿 3 號（AA）電池保持約 45 度傾斜角，將電池平坦的「負極（-）」對準電池盒右側的螺旋彈簧部位。&quot;,
+            tipTitle: &quot;口訣：先負極、後正極&quot;,
+            tip: &quot;電池盒只有負極端有可伸縮的螺旋彈簧。一定要先用平坦的負極去壓縮彈簧，才能騰出空間讓凸起的正極進入。&quot;,
+            errorDesc: &quot;【錯誤示範】未將負極斜角對準彈簧，而是試圖直接把凸起的『正極（+）』平塞進電池盒。&quot;,
+            errorTip: &quot;正極端是固定不動的金屬片，沒有伸縮緩衝空間，硬塞會直接撞擊正極金屬片。&quot;
+          },
+          {
+            title: &quot;步驟 2：負極壓入並壓縮彈簧&quot;,
+            desc: &quot;手指順著 45° 斜角向負極彈簧方向推壓，負極平端頂住並明顯壓縮彈簧，使電池整體向負極側退讓出安裝空間。&quot;,
+            tipTitle: &quot;觀察彈簧受力變形&quot;,
+            tip: &quot;當彈簧被壓縮時，線圈間距變密、儲存彈性位能，電池正極端就能順利避開左側正極金屬片的阻擋。&quot;,
+            errorDesc: &quot;【錯誤後果】因為彈簧完全沒被壓縮，電池長度大於電池盒內距，正極凸起硬生生撞彎了左側的正極金屬片！&quot;,
+            errorTip: &quot;正極金屬片一旦被壓彎變形，日後即使正確裝入電池也會造成接觸不良、無法通電。&quot;
+          },
+          {
+            title: &quot;步驟 3：下壓卡入正極完成安裝&quot;,
+            desc: &quot;在彈簧保持壓縮的狀態下，手指將電池正極端向下壓入電池盒內，正極凸起卡入金屬片內側，彈簧微幅回彈頂緊電池。&quot;,
+            tipTitle: &quot;確認電池平整貼合&quot;,
+            tip: &quot;安裝完成後，電池應平貼電池盒底部，彈簧保持適度壓縮頂緊正負極，確保電流順暢通過。&quot;,
+            errorDesc: &quot;【卡死狀態】電池斜卡在電池盒邊緣無法壓平，正極金屬片受損變形，電路無法接通。&quot;,
+            errorTip: &quot;遇到卡住時切勿用力硬敲，應取出電池重新以『45° 角負極先壓彈簧』方式裝入。&quot;
+          }
+        ]
+      },
+      module2_remove: {
+        totalSteps: 3,
+        steps: [
+          {
+            title: &quot;步驟 1：手指按住電池正極端&quot;,
+            desc: &quot;準備取出電池時，先用食指或拇指從上方穩穩抵住電池的「正極端（+）」（左側有凸起的一端）。&quot;,
+            tipTitle: &quot;找準施力起點：正極端&quot;,
+            tip: &quot;許多同學習慣從負極彈簧端去摳電池，但負極端有彈簧頂住且較平滑，從正極端施力才是正確技巧。&quot;,
+            errorDesc: &quot;【錯誤示範】手指直接扣住正極端，準備在未壓縮彈簧的情況下直接向上硬拔。&quot;,
+            errorTip: &quot;注意觀察正極凸起處正卡在左側正極金屬片的凹槽內側。&quot;
+          },
+          {
+            title: &quot;步驟 2：從正極向負極壓下／推擠&quot;,
+            desc: &quot;手指同時向下並「從正極向負極方向推壓」，使電池再次壓縮右側的負極彈簧，讓正極凸起向後退開、脫離金屬片阻擋。&quot;,
+            tipTitle: &quot;關鍵動作：水平推壓縮彈簧&quot;,
+            tip: &quot;透過向負極側推擠，讓彈簧再次被壓縮約 0.5 公分，正極凸起就會完全退出正極金屬片的卡榫範圍。&quot;,
+            errorDesc: &quot;【錯誤後果】未向負極方向推壓彈簧就直接向上硬扯，正極凸起勾住正極金屬片，將金屬片硬生生向外折彎變形！&quot;,
+            errorTip: &quot;硬拔電池是實驗室電池盒損壞（金屬片斷裂或外翻）的頭號殺手！&quot;
+          },
+          {
+            title: &quot;步驟 3：從正極端向上提出&quot;,
+            desc: &quot;維持彈簧被壓縮的狀態，手指順勢將電池「從正極端向上抬起／提出」，電池呈傾斜狀由正極端先脫離電池盒，安全取出。&quot;,
+            tipTitle: &quot;裝卸口訣總複習&quot;,
+            tip: &quot;裝入時『負極 45° 壓彈簧 → 正極下壓』；取出時『正極向負極推壓 → 正極向上提出』，兩者互為逆向動作！&quot;,
+            errorDesc: &quot;【損壞示範】電池勉強拔出後，電池盒正極金屬片已嚴重外翻變形，下次使用將接觸不良。&quot;,
+            errorTip: &quot;養成『先向負極推、再從正極提』的習慣，能保護實驗器材長久耐用。&quot;
+          }
+        ]
+      }
+    };
+
+    /**
+     * ============================================================================
+     * 2. 網頁音效合成器（Web Audio API - 無需外部音檔）
+     * ============================================================================
+     */
+    class SoundFX {
+      constructor() {
+        this.enabled = true;
+        this.ctx = null;
+      }
+      init() {
+        if (!this.ctx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) this.ctx = new AudioCtx();
+        }
+        if (this.ctx &amp;&amp; this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+      playStepTick() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(520, now);
+        osc.frequency.exponentialRampToValueAtTime(780, now + 0.07);
+        gain.gain.setValueAtTime(0.08, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.08);
+      }
+      playSuccess() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        [523.25, 659.25, 783.99].forEach((freq, idx) => {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(freq, now + idx * 0.07);
+          gain.gain.setValueAtTime(0.09, now + idx * 0.07);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.07 + 0.25);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start(now + idx * 0.07);
+          osc.stop(now + idx * 0.07 + 0.26);
+        });
+      }
+      playError() {
+        if (!this.enabled) return;
+        this.init();
+        if (!this.ctx) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(190, now);
+        osc.frequency.linearRampToValueAtTime(135, now + 0.22);
+        gain.gain.setValueAtTime(0.09, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.25);
+      }
+    }
+    const sfx = new SoundFX();
+
+    /**
+     * ============================================================================
+     * 3. 應用程式狀態管理
+     * ============================================================================
+     */
+    const state = {
+      activeModule: 1,        // 1: 電線穿孔與反向纏繞, 2: 電池裝卸
+      subMode2: 'install',    // 'install' (裝入) | 'remove' (取出)
+      isErrorMode: false,     // false: 正確做法, true: 常見錯誤示範
+      showMagnifier: true,    // 模組一局部特寫放大鏡開關
+      isPlaying: true,
+      speed: 1.0,             // 1.0 或 0.5
+      progress: 0.0,          // 連續進度：模組一為 0..5.0，模組二為 0..3.0
+      lastStepIndex: -1,
+      outcomeSoundPlayed: false,
+      lastTimestamp: null
+    };
+
+    function getCurrentKey() {
+      if (state.activeModule === 1) return 'module1';
+      return state.subMode2 === 'install' ? 'module2_install' : 'module2_remove';
+    }
+
+    function getMaxSteps() {
+      return CURRICULUM_DATA[getCurrentKey()].totalSteps;
+    }
+
+    /**
+     * ============================================================================
+     * 4. 數學補間與 Canvas 繪圖輔助函式
+     * ============================================================================
+     */
+    function clamp(val, min, max) {
+      return Math.max(min, Math.min(max, val));
+    }
+
+    function lerp(a, b, t) {
+      return a + (b - a) * t;
+    }
+
+    function easeInOutCubic(t) {
+      t = clamp(t, 0, 1);
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+
+    function easeOutCubic(t) {
+      t = clamp(t, 0, 1);
+      return 1 - Math.pow(1 - t, 3);
+    }
+
+    function smoothstep(edge0, edge1, x) {
+      const t = clamp((x - edge0) / (edge1 - edge0), 0, 1);
+      return t * t * (3 - 2 * t);
+    }
+
+    // 繪製圓角矩形路徑
+    function roundRectPath(ctx, x, y, w, h, r) {
+      const radius = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + radius, y);
+      ctx.arcTo(x + w, y, x + w, y + h, radius);
+      ctx.arcTo(x + w, y + h, x, y + h, radius);
+      ctx.arcTo(x, y + h, x, y, radius);
+      ctx.arcTo(x, y, x + w, y, radius);
+      ctx.closePath();
+    }
+
+    // 繪製膠囊狀文字標籤
+    function drawLabelPill(ctx, x, y, text, bgColor = '#1E293B', textColor = '#FFFFFF', borderColor = null) {
+      ctx.save();
+      ctx.font = 'bold 14px &quot;Noto Sans TC&quot;, &quot;Inter&quot;, sans-serif';
+      const metrics = ctx.measureText(text);
+      const padX = 12;
+      const h = 28;
+      const w = metrics.width + padX * 2;
+      const rx = x - w / 2;
+      const ry = y - h / 2;
+
+      ctx.shadowColor = 'rgba(15, 23, 42, 0.14)';
+      ctx.shadowBlur = 8;
+      ctx.shadowOffsetY = 3;
+
+      roundRectPath(ctx, rx, ry, w, h, 14);
+      ctx.fillStyle = bgColor;
+      ctx.fill();
+
+      ctx.shadowColor = 'transparent';
+      if (borderColor) {
+        ctx.lineWidth = 1.8;
+        ctx.strokeStyle = borderColor;
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = textColor;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(text, x, y + 0.5);
+      ctx.restore();
+    }
+
+    // 繪製高品質向量施力箭頭
+    function drawForceArrow(ctx, x1, y1, x2, y2, color = '#EF4444', label = '', labelPos = 'top') {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+      const len = Math.hypot(dx, dy);
+      if (len < 6) return;
+
+      const angle = Math.atan2(dy, dx);
+      const headLen = Math.min(16, len * 0.42);
+      const headAngle = Math.PI / 6.5;
+
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.16)';
+      ctx.shadowBlur = 6;
+      ctx.shadowOffsetY = 2;
+
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 4.5;
+      ctx.lineCap = 'round';
+
+      // 箭身
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2 - Math.cos(angle) * (headLen * 0.7), y2 - Math.sin(angle) * (headLen * 0.7));
+      ctx.stroke();
+
+      // 箭頭三角形
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - headLen * Math.cos(angle - headAngle), y2 - headLen * Math.sin(angle - headAngle));
+      ctx.lineTo(x2 - headLen * Math.cos(angle + headAngle), y2 - headLen * Math.sin(angle + headAngle));
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+
+      if (label) {
+        const mx = (x1 + x2) / 2;
+        const my = (y1 + y2) / 2;
+        let lx = mx;
+        let ly = my - 24;
+        if (labelPos === 'bottom') ly = my + 26;
+        if (labelPos === 'left') { lx = mx - 68; ly = my; }
+        if (labelPos === 'right') { lx = mx + 68; ly = my; }
+        drawLabelPill(ctx, lx, ly, label, color, '#FFFFFF');
+      }
+    }
+
+    /**
+     * ============================================================================
+     * 5. 模組一繪製引擎：燈泡座金屬圈穿孔與反向纏繞固定
+     * ============================================================================
+     */
+    function renderModule1(ctx, W, H) {
+      // 使用虛擬座標系統 1000 x 600 等比例自適應縮放
+      const vW = 1000;
+      const vH = 600;
+      const scale = Math.min(W / vW, H / vH);
+      const offsetX = (W - vW * scale) / 2;
+      const offsetY = (H - vH * scale) / 2;
+
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
+
+      // 繪製實驗桌背景網格與柔和桌面漸層
+      drawLabBackdrop(ctx, vW, vH);
+
+      const t = state.progress; // 0.0 .. 5.0
+      const err = state.isErrorMode;
+
+      // 計算燈泡發光強度 (步驟 5)
+      let bulbGlow = 0;
+      if (t > 4.0) {
+        const p5 = t - 4.0;
+        if (!err) {
+          bulbGlow = smoothstep(0.12, 0.45, p5);
+        } else {
+          // 錯誤模式下短暫閃爍後熄滅
+          if (p5 > 0.08 &amp;&amp; p5 < 0.24) {
+            bulbGlow = Math.sin(((p5 - 0.08) / 0.16) * Math.PI) * 0.55;
+          } else {
+            bulbGlow = 0;
+          }
+        }
+      }
+
+      // 燈泡座幾何中心
+      const cx = 360;
+      const baseTopY = 385;
+      const ringCenterX = 482;
+      const ringCenterY = 398;
+
+      // 1. 繪製左側已接好的導線（構成完整電路視覺）
+      drawCompletedLeftWire(ctx, cx - 122, ringCenterY, bulbGlow > 0.1);
+
+      // 2. 繪製燈泡與燈泡座本體
+      drawBulbAndSocket(ctx, cx, baseTopY, bulbGlow);
+
+      // 3. 繪製右側目標黃銅金屬圈（先畫後半層，讓銅線能從中間穿過）
+      drawBrassEyeletBack(ctx, ringCenterX, ringCenterY);
+
+      // 4. 繪製右側剝皮電線與銅線芯（含穿孔、反折、反向螺旋纏繞、拉力測試）
+      const wireMetrics = drawTargetWireAssembly(ctx, ringCenterX, ringCenterY, t, err);
+
+      // 5. 繪製右側黃銅金屬圈（前半層遮罩，產生真實穿孔立體感）
+      drawBrassEyeletFront(ctx, ringCenterX, ringCenterY);
+
+      // 6. 繪製步驟專屬輔助標註、方向箭頭與狀態徽章
+      drawModule1Annotations(ctx, ringCenterX, ringCenterY, wireMetrics, t, err, bulbGlow);
+
+      // 7. 繪製右上角「局部特寫放大鏡框」（放大 2.5 倍檢視金屬圈與纏繞細節）
+      if (state.showMagnifier) {
+        drawModule1Magnifier(ctx, ringCenterX, ringCenterY, t, err);
+      }
+
+      ctx.restore();
+    }
+
+    function drawLabBackdrop(ctx, vW, vH) {
+      // 柔和實驗桌面底色
+      const bgGrad = ctx.createLinearGradient(0, 0, 0, vH);
+      bgGrad.addColorStop(0, '#F8FAFC');
+      bgGrad.addColorStop(0.78, '#F1F5F9');
+      bgGrad.addColorStop(1, '#E2E8F0');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, vW, vH);
+
+      // 淡雅方格紋理
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.14)';
+      ctx.lineWidth = 1;
+      for (let x = 40; x < vW; x += 40) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, vH);
+        ctx.stroke();
+      }
+      for (let y = 40; y < vH; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(vW, y);
+        ctx.stroke();
+      }
+
+      // 實驗桌水平檯面線
+      ctx.fillStyle = '#CBD5E1';
+      ctx.fillRect(40, 466, vW - 80, 6);
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.05)';
+      ctx.fillRect(55, 472, vW - 110, 14);
+    }
+
+    function drawCompletedLeftWire(ctx, ringX, ringY, isLit) {
+      ctx.save();
+      // 藍色負極回線（已固定好）
+      ctx.strokeStyle = '#2563EB';
+      ctx.lineWidth = 11;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(45, 425);
+      ctx.bezierCurveTo(110, 425, 145, ringY, 195, ringY);
+      ctx.stroke();
+
+      // 絕緣皮高光
+      ctx.strokeStyle = 'rgba(255,255,255,0.32)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(45, 422);
+      ctx.bezierCurveTo(110, 422, 145, ringY - 3, 195, ringY - 3);
+      ctx.stroke();
+
+      // 已纏繞好的銅線部分
+      ctx.strokeStyle = '#D97706';
+      ctx.lineWidth = 4.5;
+      ctx.beginPath();
+      ctx.moveTo(195, ringY);
+      ctx.lineTo(ringX, ringY);
+      ctx.stroke();
+
+      // 纏繞線圈示意
+      for (let i = 0; i < 4; i++) {
+        const wx = 204 + i * 4.5;
+        ctx.strokeStyle = '#B45309';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(wx, ringY - 5);
+        ctx.lineTo(wx + 2, ringY + 5);
+        ctx.stroke();
+      }
+
+      // 電流流動小光點（通電時）
+      if (isLit) {
+        const pulse = (performance.now() * 0.08) % 40;
+        ctx.fillStyle = '#38BDF8';
+        for (let x = 60 + pulse; x < 190; x += 40) {
+          ctx.beginPath();
+          ctx.arc(x, ringY + (x < 130 ? 15 : 0), 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    function drawBulbAndSocket(ctx, cx, baseTopY, glow) {
+      ctx.save();
+
+      // 1. 發光放射光暈 (當 glow > 0)
+      if (glow > 0.01) {
+        const bulbCenterY = 215;
+        const radGrad = ctx.createRadialGradient(cx, bulbCenterY, 10, cx, bulbCenterY, 210 * (0.7 + 0.3 * glow));
+        radGrad.addColorStop(0, `rgba(254, 240, 138, ${0.95 * glow})`);
+        radGrad.addColorStop(0.35, `rgba(250, 204, 21, ${0.48 * glow})`);
+        radGrad.addColorStop(0.7, `rgba(245, 158, 11, ${0.15 * glow})`);
+        radGrad.addColorStop(1, 'rgba(245, 158, 11, 0)');
+        ctx.fillStyle = radGrad;
+        ctx.beginPath();
+        ctx.arc(cx, bulbCenterY, 220, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 光芒射線
+        ctx.strokeStyle = `rgba(245, 158, 11, ${0.75 * glow})`;
+        ctx.lineWidth = 3.5;
+        ctx.lineCap = 'round';
+        const rayAngles = [-2.5, -2.05, -1.57, -1.1, -0.65, -0.2, 3.34];
+        rayAngles.forEach(ang => {
+          const r1 = 86;
+          const r2 = 114 + Math.sin(performance.now() * 0.008) * 5;
+          ctx.beginPath();
+          ctx.moveTo(cx + Math.cos(ang) * r1, bulbCenterY + Math.sin(ang) * r1);
+          ctx.lineTo(cx + Math.cos(ang) * r2, bulbCenterY + Math.sin(ang) * r2);
+          ctx.stroke();
+        });
+      }
+
+      // 2. 玻璃燈泡外殼
+      const bulbCenterY = 215;
+      ctx.beginPath();
+      ctx.moveTo(cx - 36, 315);
+      ctx.bezierCurveTo(cx - 42, 285, cx - 72, 260, cx - 72, bulbCenterY);
+      ctx.arc(cx, bulbCenterY, 72, Math.PI, 0, false);
+      ctx.bezierCurveTo(cx + 72, 260, cx + 42, 285, cx + 36, 315);
+      ctx.closePath();
+
+      const glassGrad = ctx.createRadialGradient(cx - 22, bulbCenterY - 25, 8, cx, bulbCenterY, 80);
+      if (glow > 0.05) {
+        glassGrad.addColorStop(0, `rgba(255, 255, 255, ${0.85 + 0.15 * glow})`);
+        glassGrad.addColorStop(0.5, `rgba(254, 249, 195, ${0.65 + 0.3 * glow})`);
+        glassGrad.addColorStop(1, `rgba(253, 224, 71, ${0.4 + 0.4 * glow})`);
+      } else {
+        glassGrad.addColorStop(0, 'rgba(255, 255, 255, 0.92)');
+        glassGrad.addColorStop(0.65, 'rgba(226, 232, 240, 0.45)');
+        glassGrad.addColorStop(1, 'rgba(148, 163, 184, 0.38)');
+      }
+      ctx.fillStyle = glassGrad;
+      ctx.fill();
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = glow > 0.2 ? '#F59E0B' : '#94A3B8';
+      ctx.stroke();
+
+      // 玻璃反光月牙
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(cx, bulbCenterY, 54, Math.PI * 1.15, Math.PI * 1.48);
+      ctx.stroke();
+
+      // 3. 燈泡內部玻璃柱與鎢絲
+      ctx.fillStyle = 'rgba(203, 213, 225, 0.6)';
+      ctx.fillRect(cx - 8, 258, 16, 56);
+
+      // 支架導線
+      ctx.strokeStyle = '#64748B';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(cx - 4, 262);
+      ctx.lineTo(cx - 18, 222);
+      ctx.moveTo(cx + 4, 262);
+      ctx.lineTo(cx + 18, 222);
+      ctx.stroke();
+
+      // 鎢絲鋸齒線圈
+      ctx.strokeStyle = glow > 0.1 ? '#FFFFFF' : '#475569';
+      ctx.lineWidth = glow > 0.1 ? 3.5 : 2.2;
+      if (glow > 0.1) {
+        ctx.shadowColor = '#F59E0B';
+        ctx.shadowBlur = 16 * glow;
+      }
+      ctx.beginPath();
+      ctx.moveTo(cx - 18, 222);
+      for (let i = 0; i <= 6; i++) {
+        const fx = cx - 18 + i * 6;
+        const fy = 222 + (i % 2 === 0 ? -5 : 5);
+        ctx.lineTo(fx, fy);
+      }
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // 4. 燈泡螺紋金屬頭
+      const screwGrad = ctx.createLinearGradient(cx - 38, 0, cx + 38, 0);
+      screwGrad.addColorStop(0, '#94A3B8');
+      screwGrad.addColorStop(0.35, '#F1F5F9');
+      screwGrad.addColorStop(0.7, '#CBD5E1');
+      screwGrad.addColorStop(1, '#64748B');
+      ctx.fillStyle = screwGrad;
+      roundRectPath(ctx, cx - 36, 312, 72, 42, 4);
+      ctx.fill();
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 螺紋溝槽
+      for (let sy = 320; sy <= 344; sy += 8) {
+        ctx.beginPath();
+        ctx.moveTo(cx - 36, sy);
+        ctx.lineTo(cx + 36, sy + 3);
+        ctx.strokeStyle = '#64748B';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      // 5. 燈泡座金屬套筒與黑色電木底座
+      const brassCupGrad = ctx.createLinearGradient(cx - 46, 0, cx + 46, 0);
+      brassCupGrad.addColorStop(0, '#B45309');
+      brassCupGrad.addColorStop(0.35, '#FDE68A');
+      brassCupGrad.addColorStop(0.65, '#F59E0B');
+      brassCupGrad.addColorStop(1, '#92400E');
+      ctx.fillStyle = brassCupGrad;
+      roundRectPath(ctx, cx - 44, 348, 88, 38, 4);
+      ctx.fill();
+      ctx.strokeStyle = '#78350F';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 左側黃銅金屬圈（完整環）
+      drawFullBrassEyelet(ctx, cx - 122, 398);
+
+      // 燈泡座底座本體
+      const baseGrad = ctx.createLinearGradient(0, baseTopY, 0, 466);
+      baseGrad.addColorStop(0, '#334155');
+      baseGrad.addColorStop(0.2, '#1E293B');
+      baseGrad.addColorStop(1, '#0F172A');
+      ctx.fillStyle = baseGrad;
+      roundRectPath(ctx, cx - 102, baseTopY, 204, 66, 10);
+      ctx.fill();
+      ctx.strokeStyle = '#0F172A';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 底座底部固定翼片
+      ctx.fillStyle = '#334155';
+      roundRectPath(ctx, cx - 118, 444, 236, 22, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      // 底座標籤
+      ctx.fillStyle = '#94A3B8';
+      ctx.font = 'bold 13px &quot;Noto Sans TC&quot;, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('實驗用燈泡座', cx, 424);
+
+      ctx.restore();
+    }
+
+    // 繪製完整左側金屬圈
+    function drawFullBrassEyelet(ctx, x, y) {
+      ctx.save();
+      // 連接柄
+      ctx.fillStyle = '#D97706';
+      ctx.fillRect(x + 12, y - 6, 20, 12);
+
+      // 外圈
+      const grad = ctx.createRadialGradient(x - 5, y - 5, 3, x, y, 22);
+      grad.addColorStop(0, '#FEF3C7');
+      grad.addColorStop(0.5, '#F59E0B');
+      grad.addColorStop(1, '#92400E');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(x, y, 20, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#78350F';
+      ctx.stroke();
+
+      // 內孔
+      ctx.fillStyle = '#F1F5F9';
+      ctx.beginPath();
+      ctx.arc(x, y, 8.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 繪製右側目標金屬圈（前半/後半分層，讓銅線有真實穿孔立體感）
+    function drawBrassEyeletBack(ctx, x, y) {
+      ctx.save();
+      // 連接燈泡座的黃銅柄
+      const stemGrad = ctx.createLinearGradient(0, y - 7, 0, y + 7);
+      stemGrad.addColorStop(0, '#F59E0B');
+      stemGrad.addColorStop(0.5, '#FDE68A');
+      stemGrad.addColorStop(1, '#B45309');
+      ctx.fillStyle = stemGrad;
+      ctx.fillRect(x - 32, y - 7, 22, 14);
+      ctx.strokeStyle = '#78350F';
+      ctx.lineWidth = 1.8;
+      ctx.strokeRect(x - 32, y - 7, 22, 14);
+
+      // 金屬圈背側半環（左側半圓）
+      const grad = ctx.createRadialGradient(x - 4, y - 6, 2, x, y, 23);
+      grad.addColorStop(0, '#FEF3C7');
+      grad.addColorStop(0.5, '#F59E0B');
+      grad.addColorStop(1, '#92400E');
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(x, y, 21, Math.PI * 0.5, Math.PI * 1.5, false);
+      ctx.arc(x, y, 9, Math.PI * 1.5, Math.PI * 0.5, true);
+      ctx.closePath();
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#78350F';
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawBrassEyeletFront(ctx, x, y) {
+      ctx.save();
+      // 金屬圈前側半環（右側半圓，覆蓋在穿過的銅線之上！）
+      const grad = ctx.createRadialGradient(x - 4, y - 6, 2, x, y, 23);
+      grad.addColorStop(0, '#FEF3C7');
+      grad.addColorStop(0.55, '#F59E0B');
+      grad.addColorStop(1, '#92400E');
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(x, y, 21, -Math.PI * 0.5, Math.PI * 0.5, false);
+      ctx.arc(x, y, 9, Math.PI * 0.5, -Math.PI * 0.5, true);
+      ctx.closePath();
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#78350F';
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    /**
+     * 繪製核心電線穿孔、反折、螺旋纏繞與拉力測試動態幾何
+     */
+    function drawTargetWireAssembly(ctx, ringX, ringY, t, err) {
+      ctx.save();
+
+      // 銅線總剝皮長度 = 115px
+      const strippedLen = 115;
+
+      // 計算電線主體（絕緣皮起點 insulStartX）位置
+      let insulStartX = 522; // 停在金屬圈右側 (ringX + 21 = 503) 外側約 19px 處
+      let pullOffsetX = 0;
+      let slipProgress = 0;
+
+      if (t <= 1.0) {
+        // 步驟 1：從右側水平對準金屬圈
+        const p1 = easeInOutCubic(t);
+        insulStartX = lerp(740, 560, p1);
+      } else if (t <= 2.0) {
+        // 步驟 2：穿過金屬圈圓孔
+        const p2 = easeInOutCubic(t - 1.0);
+        insulStartX = lerp(560, 522, p2);
+      } else if (t > 4.0) {
+        // 步驟 5：向右輕拉測試
+        const p5 = t - 4.0;
+        if (!err) {
+          // 正確做法：僅微幅彈性繃緊 3px，紋絲不動
+          pullOffsetX = Math.sin(Math.min(1, p5 * 2.5) * Math.PI * 0.5) * 3.5;
+        } else {
+          // 錯誤做法：一拉就滑出脫落！
+          slipProgress = easeInOutCubic(clamp((p5 - 0.08) / 0.65, 0, 1));
+          pullOffsetX = slipProgress * 155;
+        }
+      }
+
+      const activeInsulX = insulStartX + pullOffsetX;
+      const straightTipX = activeInsulX - strippedLen; // 未彎折前的銅線最前端 X
+
+      // 計算彎折與纏繞參數
+      let bendP = 0; // 0..1 (步驟 3)
+      let wrapP = 0; // 0..1 (步驟 4)
+
+      if (t > 2.0 &amp;&amp; t <= 3.0) {
+        bendP = easeInOutCubic(t - 2.0);
+      } else if (t > 3.0) {
+        bendP = 1.0;
+        wrapP = easeInOutCubic(clamp(t - 3.0, 0, 1));
+      }
+
+      // 若為錯誤模式且步驟 5 正在拉出，U 型勾被拉直鬆開
+      if (err &amp;&amp; slipProgress > 0) {
+        bendP = Math.max(0, 1 - slipProgress * 1.4);
+      }
+
+      // --- A. 繪製銅線主幹（從絕緣皮端點向左延伸至金屬圈孔中心） ---
+      const stemLeftX = bendP > 0 ? Math.max(straightTipX, ringX - 6 + pullOffsetX) : straightTipX;
+      drawCopperStroke(ctx, activeInsulX, ringY, stemLeftX, ringY, 5.2);
+
+      // --- B. 繪製反折 U 型勾與反向螺旋纏繞 ---
+      let tailTipX = stemLeftX;
+      let tailTipY = ringY;
+
+      if (bendP > 0.001) {
+        if (!err) {
+          // 【正確模式】：緊密反折 180° 扣住金屬圈上緣 + 3.5 圈反向螺旋纏繞在主幹上
+          const hookTopY = ringY - 21; // 緊貼金屬圈外緣上方
+          const hookLeftX = ringX - 9 + pullOffsetX;
+
+          // 1. U 型反折段（從孔中心向左穿出 -> 向上弧形反折 -> 回到金屬圈右側主幹上方）
+          const uReachX = lerp(ringX - 6, ringX + 19, bendP) + pullOffsetX;
+          const uArcY = lerp(ringY, hookTopY, Math.sin(bendP * Math.PI * 0.5));
+
+          ctx.save();
+          ctx.strokeStyle = '#D97706';
+          ctx.lineWidth = 4.8;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.beginPath();
+          ctx.moveTo(ringX - 4 + pullOffsetX, ringY);
+          ctx.bezierCurveTo(
+            hookLeftX - 10, ringY,
+            hookLeftX - 10, hookTopY,
+            ringX + 2 + pullOffsetX, hookTopY
+          );
+          if (bendP > 0.45) {
+            const legP = (bendP - 0.45) / 0.55;
+            const endLegX = lerp(ringX + 2, ringX + 21, legP) + pullOffsetX;
+            const endLegY = lerp(hookTopY, ringY - 4, legP);
+            ctx.lineTo(endLegX, endLegY);
+            tailTipX = endLegX;
+            tailTipY = endLegY;
+          } else {
+            tailTipX = ringX + 2 + pullOffsetX;
+            tailTipY = hookTopY;
+          }
+          ctx.stroke();
+
+          // 銅線反光高光
+          ctx.strokeStyle = '#FDE68A';
+          ctx.lineWidth = 1.6;
+          ctx.stroke();
+          ctx.restore();
+
+          // 2. 反向螺旋纏繞（步驟 4：沿著主幹 x = ringX+21 .. activeInsulX-4 緊密繞 3.5 圈）
+          if (wrapP > 0.001) {
+            const totalTurns = 3.5;
+            const currentTurns = wrapP * totalTurns;
+            const coilStartX = ringX + 22 + pullOffsetX;
+            const coilPitch = 5.4; // 每圈螺距
+
+            // 先畫螺旋線圈的「後半圈」（在銅線主幹後方）
+            drawHelixCoils(ctx, coilStartX, ringY, currentTurns, coilPitch, 5.2, 'back');
+            // 重繪一段主幹中心覆蓋後半圈，形成真實前後交錯感
+            drawCopperStroke(ctx, activeInsulX, ringY, coilStartX - 2, ringY, 5.2);
+            // 再畫螺旋線圈的「前半圈」（在銅線主幹前方）
+            const lastPos = drawHelixCoils(ctx, coilStartX, ringY, currentTurns, coilPitch, 5.2, 'front');
+            tailTipX = lastPos.x;
+            tailTipY = lastPos.y;
+
+            // 繪製正在纏繞的自由銅線尾端（當 wrapP < 0.98 時顯示動態擺動尾段）
+            if (wrapP < 0.98) {
+              const tailLen = (1 - wrapP) * 28 + 8;
+              const swingAngle = lastPos.phase;
+              const endX = lastPos.x + 5;
+              const endY = lastPos.y + Math.cos(swingAngle) * tailLen;
+              drawCopperStroke(ctx, lastPos.x, lastPos.y, endX, endY, 4.4);
+              tailTipX = endX;
+              tailTipY = endY;
+            }
+          }
+        } else {
+          // 【錯誤模式】：僅松散向上勾住，沒有反向纏繞主幹
+          const looseHookY = ringY - 23 * bendP;
+          const looseTipX = ringX - 12 + pullOffsetX + (1 - bendP) * -28;
+          ctx.save();
+          ctx.strokeStyle = '#D97706';
+          ctx.lineWidth = 4.8;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(stemLeftX, ringY);
+          ctx.quadraticCurveTo(
+            ringX - 16 + pullOffsetX,
+            ringY,
+            looseTipX,
+            looseHookY
+          );
+          ctx.stroke();
+          ctx.strokeStyle = '#FDE68A';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.restore();
+
+          tailTipX = looseTipX;
+          tailTipY = looseHookY;
+        }
+      }
+
+      // --- C. 繪製紅色絕緣外皮主體（右側） ---
+      drawRedInsulatedWire(ctx, activeInsulX, ringY, 960, 415);
+
+      ctx.restore();
+
+      return {
+        insulStartX: activeInsulX,
+        straightTipX,
+        tailTipX,
+        tailTipY,
+        slipProgress
+      };
+    }
+
+    // 繪製光亮銅線線段
+    function drawCopperStroke(ctx, x1, y1, x2, y2, width) {
+      ctx.save();
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = '#B45309';
+      ctx.lineWidth = width + 1.4;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#F59E0B';
+      ctx.lineWidth = width;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#FEF3C7';
+      ctx.lineWidth = width * 0.34;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1 - width * 0.16);
+      ctx.lineTo(x2, y2 - width * 0.16);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 繪製 3D 螺旋纏繞線圈（分前後半層，呈現真實纏繞交錯立體感）
+    function drawHelixCoils(ctx, startX, centerY, turns, pitch, radiusY, pass) {
+      const stepsPerTurn = 24;
+      const totalSteps = Math.max(1, Math.floor(turns * stepsPerTurn));
+      let lastX = startX;
+      let lastY = centerY - radiusY;
+      let lastPhase = 0;
+
+      ctx.save();
+      ctx.lineCap = 'round';
+
+      for (let i = 0; i < totalSteps; i++) {
+        const p0 = i / stepsPerTurn;
+        const p1 = (i + 1) / stepsPerTurn;
+        const a0 = p0 * Math.PI * 2;
+        const a1 = p1 * Math.PI * 2;
+        const midA = (a0 + a1) * 0.5;
+
+        // cos(midA) >= 0 為前半圈（朝向觀眾），< 0 為後半圈（在銅線主幹後面）
+        const isFront = Math.sin(midA) >= 0;
+
+        const x0 = startX + p0 * pitch;
+        const y0 = centerY - Math.cos(a0) * radiusY;
+        const x1 = startX + p1 * pitch;
+        const y1 = centerY - Math.cos(a1) * radiusY;
+
+        lastX = x1;
+        lastY = y1;
+        lastPhase = a1;
+
+        if ((pass === 'front' &amp;&amp; isFront) || (pass === 'back' &amp;&amp; !isFront)) {
+          // 陰影底色
+          ctx.strokeStyle = isFront ? '#92400E' : '#78350F';
+          ctx.lineWidth = 4.6;
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+
+          // 金銅主色
+          ctx.strokeStyle = isFront ? '#FBBF24' : '#D97706';
+          ctx.lineWidth = 3.2;
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+
+          // 前半圈高光
+          if (isFront) {
+            ctx.strokeStyle = '#FEF9C3';
+            ctx.lineWidth = 1.2;
+            ctx.beginPath();
+            ctx.moveTo(x0, y0 - 0.8);
+            ctx.lineTo(x1, y1 - 0.8);
+            ctx.stroke();
+          }
+        }
+      }
+
+      ctx.restore();
+      return { x: lastX, y: lastY, phase: lastPhase };
+    }
+
+    // 繪製紅色絕緣外皮電線
+    function drawRedInsulatedWire(ctx, startX, startY, endX, endY) {
+      ctx.save();
+      const ctrl1X = startX + (endX - startX) * 0.45;
+      const ctrl2X = startX + (endX - startX) * 0.65;
+
+      // 陰影
+      ctx.strokeStyle = 'rgba(15, 23, 42, 0.12)';
+      ctx.lineWidth = 13;
+      ctx.lineCap = 'butt';
+      ctx.beginPath();
+      ctx.moveTo(startX, startY + 5);
+      ctx.bezierCurveTo(ctrl1X, startY + 5, ctrl2X, endY + 5, endX, endY + 5);
+      ctx.stroke();
+
+      // 紅色主體
+      ctx.strokeStyle = '#DC2626';
+      ctx.lineWidth = 12;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.bezierCurveTo(ctrl1X, startY, ctrl2X, endY, endX, endY);
+      ctx.stroke();
+
+      // 管狀光澤高光
+      ctx.strokeStyle = '#FCA5A5';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY - 3);
+      ctx.bezierCurveTo(ctrl1X, startY - 3, ctrl2X, endY - 3, endX, endY - 3);
+      ctx.stroke();
+
+      // 剝皮切口端面環
+      ctx.fillStyle = '#991B1B';
+      ctx.beginPath();
+      ctx.ellipse(startX, startY, 3, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // 繪製模組一的輔助指引線、箭頭與教學標籤
+    function drawModule1Annotations(ctx, ringX, ringY, metrics, t, err, bulbGlow) {
+      ctx.save();
+
+      if (t <= 1.0) {
+        // 步驟 1：水平對準輔助虛線與標註
+        ctx.setLineDash([6, 5]);
+        ctx.strokeStyle = '#2563EB';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(ringX - 30, ringY);
+        ctx.lineTo(metrics.straightTipX - 6, ringY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        drawForceArrow(ctx, metrics.insulStartX + 45, ringY - 36, metrics.insulStartX - 35, ringY - 36, '#2563EB', '水平對準金屬圈圓孔');
+        drawLabelPill(ctx, ringX, ringY + 46, '黃銅金屬圈', '#FEF3C7', '#92400E', '#F59E0B');
+      } else if (t <= 2.0) {
+        // 步驟 2：穿過金屬圈
+        drawForceArrow(ctx, metrics.insulStartX + 55, ringY - 38, metrics.insulStartX - 15, ringY - 38, '#2563EB', '銅線穿過圓孔約 1.5~2 cm');
+        drawLabelPill(ctx, metrics.insulStartX + 42, ringY + 42, '絕緣外皮停在孔外', '#FEE2E2', '#991B1B', '#EF4444');
+      } else if (t <= 3.0) {
+        // 步驟 3：向上反折 180°
+        if (!err) {
+          // 弧形反折箭頭
+          ctx.strokeStyle = '#EA580C';
+          ctx.lineWidth = 3.2;
+          ctx.beginPath();
+          ctx.arc(ringX - 6, ringY - 12, 26, Math.PI * 0.9, Math.PI * 1.75);
+          ctx.stroke();
+          drawLabelPill(ctx, ringX - 24, ringY - 58, '向上並向後反折 180° 扣緊', '#FFEDD5', '#9A3412', '#F97316');
+        } else {
+          drawLabelPill(ctx, ringX - 20, ringY - 58, '⚠ 僅隨意向上微彎勾住', '#FEE2E2', '#991B1B', '#EF4444');
+        }
+      } else if (t <= 4.0) {
+        // 步驟 4：反向螺旋纏繞
+        if (!err) {
+          drawLabelPill(ctx, ringX + 35, ringY - 56, '反向螺旋纏繞主幹 3～4 圈', '#DCFCE7', '#166534', '#22C55E');
+          // 旋轉方向小弧線
+          ctx.strokeStyle = '#16A34A';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.ellipse(ringX + 34, ringY, 6, 15, 0, -Math.PI * 0.6, Math.PI * 0.6);
+          ctx.stroke();
+        } else {
+          drawLabelPill(ctx, ringX + 35, ringY - 56, '⚠ 錯誤：省略反向纏繞固定！', '#FEE2E2', '#991B1B', '#EF4444');
+        }
+      } else {
+        // 步驟 5：拉力測試與通電結果
+        drawForceArrow(ctx, metrics.insulStartX + 30, ringY - 38, metrics.insulStartX + 125, ringY - 38, '#EF4444', '向右輕拉測試拉力');
+
+        if (!err) {
+          drawLabelPill(ctx, ringX + 20, ringY + 52, '✔ 反向纏繞鎖死・穩固不脫落', '#16A34A', '#FFFFFF');
+          if (bulbGlow > 0.3) {
+            drawLabelPill(ctx, 360, 112, '💡 電路接通・燈泡穩定發光！', '#FEF08A', '#854D0E', '#EAB308');
+          }
+        } else {
+          drawLabelPill(ctx, ringX + 45, ringY + 52, '✖ 一拉就鬆脫・接觸不良熄滅！', '#DC2626', '#FFFFFF');
+          // 若剛脫落，畫出火花閃光
+          if (metrics.slipProgress > 0.1 &amp;&amp; metrics.slipProgress < 0.45) {
+            drawContactSpark(ctx, ringX + 12, ringY);
+          }
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function drawContactSpark(ctx, x, y) {
+      ctx.save();
+      ctx.strokeStyle = '#F59E0B';
+      ctx.lineWidth = 2.5;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2 + 0.3;
+        ctx.beginPath();
+        ctx.moveTo(x + Math.cos(a) * 6, y + Math.sin(a) * 6);
+        ctx.lineTo(x + Math.cos(a) * 18, y + Math.sin(a) * 18);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    // 繪製右上角「局部特寫放大鏡框」
+    function drawModule1Magnifier(ctx, ringX, ringY, t, err) {
+      const boxX = 655;
+      const boxY = 26;
+      const boxW = 315;
+      const boxH = 225;
+      const zoom = 2.45;
+
+      ctx.save();
+
+      // 連接原點與放大框的虛線引導線
+      ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = 'rgba(37, 99, 235, 0.45)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(ringX + 18, ringY - 18);
+      ctx.lineTo(boxX + 20, boxY + boxH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 在實際金屬圈周圍畫一個虛線對焦圓圈
+      ctx.strokeStyle = 'rgba(37, 99, 235, 0.55)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(ringX + 18, ringY, 44, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // 放大框外框與陰影
+      ctx.shadowColor = 'rgba(15, 23, 42, 0.16)';
+      ctx.shadowBlur = 14;
+      ctx.shadowOffsetY = 5;
+      roundRectPath(ctx, boxX, boxY, boxW, boxH, 18);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+      ctx.lineWidth = 2.5;
+      ctx.strokeStyle = err ? '#FCA5A5' : '#93C5FD';
+      ctx.stroke();
+
+      // 裁切放大鏡內部視窗
+      ctx.save();
+      roundRectPath(ctx, boxX + 2, boxY + 2, boxW - 4, boxH - 4, 16);
+      ctx.clip();
+
+      // 內部淡藍網格背景
+      ctx.fillStyle = '#F8FAFC';
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+
+      // 將目標焦點 (ringX + 18, ringY) 映射到放大框中央偏下
+      const focusX = ringX + 18;
+      const focusY = ringY;
+      const targetCenterX = boxX + boxW * 0.48;
+      const targetCenterY = boxY + boxH * 0.58;
+
+      ctx.translate(targetCenterX, targetCenterY);
+      ctx.scale(zoom, zoom);
+      ctx.translate(-focusX, -focusY);
+
+      // 重繪放大後的金屬圈與電線細節
+      drawBrassEyeletBack(ctx, ringX, ringY);
+      drawTargetWireAssembly(ctx, ringX, ringY, t, err);
+      drawBrassEyeletFront(ctx, ringX, ringY);
+
+      ctx.restore();
+
+      // 放大框標題列徽章
+      roundRectPath(ctx, boxX + 12, boxY + 10, 146, 26, 8);
+      ctx.fillStyle = '#1E293B';
+      ctx.fill();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 12px &quot;Noto Sans TC&quot;, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🔍 局部特寫放大 (2.5x)', boxX + 22, boxY + 23);
+
+      // 放大框內構造文字標註
+      ctx.font = 'bold 11px &quot;Noto Sans TC&quot;, sans-serif';
+      ctx.fillStyle = '#92400E';
+      ctx.fillText('黃銅金屬圈', boxX + 22, boxY + boxH - 18);
+      ctx.fillStyle = '#DC2626';
+      ctx.textAlign = 'right';
+      ctx.fillText('絕緣外皮', boxX + boxW - 18, boxY + boxH - 18);
+
+      ctx.restore();
+    }
+
+    /**
+     * ============================================================================
+     * 6. 模組二繪製引擎：電池 45° 壓彈簧裝入 ＆ 從正極向負極壓下後由正極提出
+     * ============================================================================
+     */
+    function renderModule2(ctx, W, H) {
+      const vW = 1000;
+      const vH = 600;
+      const scale = Math.min(W / vW, H / vH);
+      const offsetX = (W - vW * scale) / 2;
+      const offsetY = (H - vH * scale) / 2;
+
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.scale(scale, scale);
+
+      // 繪製實驗桌背景
+      drawLabBackdrop(ctx, vW, vH);
+
+      const t = state.progress; // 0.0 .. 3.0
+      const isInstall = state.subMode2 === 'install';
+      const err = state.isErrorMode;
+
+      // 電池盒幾何常數（精確物理尺寸對齊）
+      const holderLeftWallInnerX = 258;
+      const holderRightWallInnerX = 742;
+      const holderFloorY = 402;
+      const batteryRadius = 50; // 電池半徑 (直徑 100px)
+      const batteryRestCenterY = holderFloorY - batteryRadius; // 352
+      const batteryBodyLen = 388;
+      const nubLen = 14; // 正極凸起長度
+      const springRestLen = 78; // 彈簧自然長度 -> 尖端在 742 - 78 = 664
+
+      // 狀態變數（由動畫進度計算）
+      let batNegX = 672;       // 電池右端（負極平端）X 座標
+      let batNegY = batteryRestCenterY;
+      let batAngleDeg = 0;     // 電池傾斜角度（正值代表左側正極翹起）
+      let posTabBendDeg = 0;   // 左側正極金屬片受損彎折角度
+      let handPos = { x: 420, y: 200, visible: false, pinch: false };
+      let showAngleGuide = false;
+      let statusBanner = null;
+
+      if (isInstall) {
+        // ============================================================
+        // 子模式 A：裝入電池（45度角負極壓入彈簧 -> 下壓卡入正極）
+        // ============================================================
+        if (t <= 1.0) {
+          // 步驟 1：手拿電池以 45° 角傾斜，負極平端對準右側彈簧尖端 (664, 352)
+          const p1 = easeInOutCubic(t);
+          batAngleDeg = 45;
+          batNegX = lerp(580, 664, p1);
+          batNegY = lerp(245, batteryRestCenterY, p1);
+          showAngleGuide = p1 > 0.35;
+
+          const rad = (batAngleDeg * Math.PI) / 180;
+          const midX = batNegX - Math.cos(rad) * 200;
+          const midY = batNegY - Math.sin(rad) * 200;
+          handPos = { x: midX, y: midY - 48, visible: true, pinch: true };
+        } else if (t <= 2.0) {
+          // 步驟 2：負極壓入壓縮彈簧
+          const p2 = easeInOutCubic(t - 1.0);
+          if (!err) {
+            // 正確做法：沿 45° 斜角向右下推壓，壓縮右側彈簧 (664 -> 708)
+            batNegX = lerp(664, 708, p2);
+            batNegY = batteryRestCenterY;
+            batAngleDeg = lerp(45, 25, p2);
+            showAngleGuide = p2 < 0.45;
+
+            const rad = (batAngleDeg * Math.PI) / 180;
+            const posEndX = batNegX - Math.cos(rad) * (batteryBodyLen + nubLen);
+            const posEndY = batNegY - Math.sin(rad) * (batteryBodyLen + nubLen);
+            handPos = { x: posEndX + 45, y: posEndY - 46, visible: true, pinch: false };
+          } else {
+            // 錯誤做法：沒有先用負極壓縮彈簧，直接平壓正極凸起，撞彎左側正極金屬片！
+            batAngleDeg = lerp(35, 8, p2);
+            batNegX = lerp(652, 665, p2);
+            batNegY = lerp(310, 342, p2);
+            posTabBendDeg = lerp(0, 32, smoothstep(0.3, 1.0, p2));
+
+            const rad = (batAngleDeg * Math.PI) / 180;
+            const posEndX = batNegX - Math.cos(rad) * 360;
+            const posEndY = batNegY - Math.sin(rad) * 360;
+            handPos = { x: posEndX, y: posEndY - 52, visible: true, pinch: false };
+            if (p2 > 0.5) {
+              statusBanner = { text: '❌ 錯誤：未壓縮彈簧，正極凸起折彎了正極金屬片！', type: 'error' };
+            }
+          }
+        } else {
+          // 步驟 3：下壓卡入正極完成安裝
+          const p3 = easeInOutCubic(t - 2.0);
+          if (!err) {
+            if (p3 < 0.72) {
+              // 維持彈簧壓縮 (batNegX = 708)，將正極端向下壓入電池盒 (angle 25° -> 0°)
+              const subP = p3 / 0.72;
+              batNegX = 708;
+              batNegY = batteryRestCenterY;
+              batAngleDeg = lerp(25, 0, easeInOutCubic(subP));
+            } else {
+              // 彈簧微幅回彈頂緊電池 (708 -> 672)，正極凸起卡入正極金屬片！
+              const reboundP = (p3 - 0.72) / 0.28;
+              batNegX = lerp(708, 672, easeOutCubic(reboundP));
+              batNegY = batteryRestCenterY;
+              batAngleDeg = 0;
+            }
+            const rad = (batAngleDeg * Math.PI) / 180;
+            const posEndX = batNegX - Math.cos(rad) * 380;
+            const posEndY = batNegY - Math.sin(rad) * 380;
+            handPos = { x: posEndX, y: posEndY - 52 - (p3 > 0.75 ? (p3 - 0.75) * 80 : 0), visible: p3 < 0.92, pinch: false };
+
+            if (p3 >= 0.75) {
+              statusBanner = { text: '✔ 安裝完成・正負極接觸良好！', type: 'success' };
+            }
+          } else {
+            // 錯誤狀態維持卡死變形
+            batAngleDeg = 8;
+            batNegX = 665;
+            batNegY = 342;
+            posTabBendDeg = 32;
+            handPos = { x: 310, y: 265, visible: true, pinch: false };
+            statusBanner = { text: '❌ 正極金屬片變形卡死・無法平貼通電！', type: 'error' };
+          }
+        }
+      } else {
+        // ============================================================
+        // 子模式 B：取出電池（手指按正極 -> 向負極推壓縮彈簧 -> 從正極提出）
+        // ============================================================
+        if (t <= 1.0) {
+          // 步驟 1：手指從上方移入按住電池正極端 (+)
+          const p1 = easeInOutCubic(t);
+          batNegX = 672;
+          batNegY = batteryRestCenterY;
+          batAngleDeg = 0;
+          handPos = {
+            x: 292,
+            y: lerp(180, 294, p1),
+            visible: true,
+            pinch: false
+          };
+        } else if (t <= 2.0) {
+          // 步驟 2：從正極向負極壓下／推擠
+          const p2 = easeInOutCubic(t - 1.0);
+          if (!err) {
+            // 正確做法：從正極 (+) 向負極 (-) 推擠，壓縮右側彈簧 (672 -> 708)
+            batNegX = lerp(672, 708, p2);
+            batNegY = batteryRestCenterY;
+            batAngleDeg = 0;
+            handPos = {
+              x: batNegX - 380,
+              y: 294,
+              visible: true,
+              pinch: false
+            };
+          } else {
+            // 錯誤做法：未向負極壓縮彈簧，直接從正極端向上硬拔！
+            batNegX = 672;
+            batNegY = batteryRestCenterY;
+            batAngleDeg = lerp(0, 14, p2);
+            // 正極凸起勾住左側金屬片，將金屬片向外折彎！
+            posTabBendDeg = lerp(0, -34, smoothstep(0.15, 1.0, p2));
+            const rad = (batAngleDeg * Math.PI) / 180;
+            handPos = {
+              x: batNegX - Math.cos(rad) * 380,
+              y: batNegY - Math.sin(rad) * 380 - 52,
+              visible: true,
+              pinch: true
+            };
+            if (p2 > 0.45) {
+              statusBanner = { text: '❌ 錯誤：未向負極推壓，硬拔導致正極金屬片外翻變形！', type: 'error' };
+            }
+          }
+        } else {
+          // 步驟 3：從正極端向上提出
+          const p3 = easeInOutCubic(t - 2.0);
+          if (!err) {
+            // 維持彈簧被壓縮 (708)，將電池從正極端向上抬起旋轉並提出
+            const liftAngle = lerp(0, 38, Math.min(1, p3 * 1.25));
+            const liftY = p3 > 0.45 ? lerp(0, -65, (p3 - 0.45) / 0.55) : 0;
+            const liftX = p3 > 0.45 ? lerp(0, -35, (p3 - 0.45) / 0.55) : 0;
+
+            batNegX = 708 + liftX;
+            batNegY = batteryRestCenterY + liftY;
+            batAngleDeg = liftAngle;
+
+            const rad = (batAngleDeg * Math.PI) / 180;
+            handPos = {
+              x: batNegX - Math.cos(rad) * 365,
+              y: batNegY - Math.sin(rad) * 365 - 50,
+              visible: true,
+              pinch: true
+            };
+            if (p3 > 0.65) {
+              statusBanner = { text: '✔ 安全取出・電池與電池盒彈簧皆完好無損！', type: 'success' };
+            }
+          } else {
+            // 錯誤狀態：金屬片嚴重外翻損壞
+            batNegX = 672;
+            batNegY = batteryRestCenterY;
+            batAngleDeg = 14;
+            posTabBendDeg = -34;
+            handPos = { x: 300, y: 215, visible: true, pinch: true };
+            statusBanner = { text: '❌ 正極金屬片嚴重受損・下次裝電池將接觸不良！', type: 'error' };
+          }
+        }
+      }
+
+      // 計算彈簧當前尖端位置（彈簧只能被向左壓縮，最長為 springRestLen = 78 -> x = 664）
+      const springRestingTipX = holderRightWallInnerX - springRestLen; // 664
+      // 只有當電池負極端接觸到彈簧尖端 (batNegX > 664 且未抬離) 時才壓縮彈簧
+      const isTouchingSpring = batNegY >= batteryRestCenterY - 12 &amp;&amp; batNegX > springRestingTipX;
+      const springTipX = isTouchingSpring ? Math.min(holderRightWallInnerX - 24, batNegX) : springRestingTipX;
+
+      // ============================================================
+      // 依前後圖層順序繪製所有元件
+      // ============================================================
+
+      // 1. 電池盒背板與底座
+      drawBatteryHolderBack(ctx, holderLeftWallInnerX, holderRightWallInnerX, holderFloorY);
+
+      // 2. 左側正極 (+) 金屬接觸片（含受損彎折動態）
+      drawPositiveContactPlate(ctx, holderLeftWallInnerX, batteryRestCenterY, posTabBendDeg);
+
+      // 3. 右側負極 (-) 螺旋彈簧（真實螺旋線圈疏密壓縮變化）
+      drawNegativeHelicalSpring(ctx, holderRightWallInnerX, springTipX, batteryRestCenterY, springRestLen);
+
+      // 4. 3 號 (AA) 電池本體
+      drawAABattery(ctx, batNegX, batNegY, batAngleDeg, batteryBodyLen, nubLen, batteryRadius);
+
+      // 5. 電池盒半透明前側護壁（半剖面視角）
+      drawBatteryHolderFrontCutaway(ctx, holderLeftWallInnerX, holderRightWallInnerX, holderFloorY);
+
+      // 6. 45° 角度量角器輔助標示（裝入步驟 1 &amp; 2）
+      if (showAngleGuide) {
+        draw45DegreeProtractor(ctx, batNegX, batNegY, batAngleDeg);
+      }
+
+      // 7. 半透明操作手部／手指示意圖
+      if (handPos.visible) {
+        drawErgonomicHand(ctx, handPos.x, handPos.y, handPos.pinch);
+      }
+
+      // 8. 施力向量箭頭、極性標示與狀態提示徽章
+      drawModule2Annotations(ctx, t, isInstall, err, batNegX, batNegY, batAngleDeg, springTipX, statusBanner);
+
+      ctx.restore();
+    }
+
+    function drawBatteryHolderBack(ctx, leftX, rightX, floorY) {
+      ctx.save();
+      const outerLeft = leftX - 22;
+      const outerRight = rightX + 22;
+      const wallTopY = 262;
+      const baseBottomY = floorY + 24;
+
+      // 電池盒背板（半透明深藍灰聚碳酸酯質感）
+      const backGrad = ctx.createLinearGradient(0, wallTopY, 0, baseBottomY);
+      backGrad.addColorStop(0, 'rgba(203, 213, 225, 0.55)');
+      backGrad.addColorStop(1, 'rgba(148, 163, 184, 0.65)');
+      ctx.fillStyle = backGrad;
+      roundRectPath(ctx, outerLeft, wallTopY + 18, outerRight - outerLeft, baseBottomY - (wallTopY + 18), 10);
+      ctx.fill();
+      ctx.strokeStyle = '#94A3B8';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 左側端壁（正極壁）
+      ctx.fillStyle = '#334155';
+      roundRectPath(ctx, outerLeft, wallTopY, 22, baseBottomY - wallTopY, 6);
+      ctx.fill();
+      ctx.strokeStyle = '#1E293B';
+      ctx.stroke();
+
+      // 右側端壁（負極壁）
+      ctx.fillStyle = '#334155';
+      roundRectPath(ctx, rightX, wallTopY, 22, baseBottomY - wallTopY, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      // 底部承托座
+      ctx.fillStyle = '#1E293B';
+      roundRectPath(ctx, outerLeft, floorY, outerRight - outerLeft, 24, 6);
+      ctx.fill();
+
+      // 極性永久標示徽章（左上紅 +，右上藍 -）
+      drawLabelPill(ctx, outerLeft + 11, wallTopY - 24, '+ 正極端', '#EF4444', '#FFFFFF');
+      drawLabelPill(ctx, rightX + 11, wallTopY - 24, '- 負極彈簧端', '#3B82F6', '#FFFFFF');
+
+      ctx.restore();
+    }
+
+    function drawBatteryHolderFrontCutaway(ctx, leftX, rightX, floorY) {
+      ctx.save();
+      // 半透明前側擋邊（讓學生看清電池置於盒槽內部）
+      const lipTopY = floorY - 42;
+      const grad = ctx.createLinearGradient(0, lipTopY, 0, floorY);
+      grad.addColorStop(0, 'rgba(255, 255, 255, 0.14)');
+      grad.addColorStop(1, 'rgba(148, 163, 184, 0.34)');
+      ctx.fillStyle = grad;
+      roundRectPath(ctx, leftX, lipTopY, rightX - leftX, 42, 4);
+      ctx.fill();
+
+      ctx.strokeStyle = 'rgba(100, 116, 139, 0.45)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(leftX, lipTopY);
+      ctx.lineTo(rightX, lipTopY);
+      ctx.stroke();
+
+      ctx.fillStyle = 'rgba(51, 65, 85, 0.75)';
+      ctx.font = 'bold 12px &quot;Noto Sans TC&quot;, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('透明電池盒（半剖面視角）', (leftX + rightX) / 2, floorY + 13);
+      ctx.restore();
+    }
+
+    // 繪製左側正極 (+) 黃銅接觸金屬片（支援受損變形角度）
+    function drawPositiveContactPlate(ctx, wallInnerX, centerY, bendDeg) {
+      ctx.save();
+      // 以底部固定點為旋轉軸心
+      const pivotX = wallInnerX + 4;
+      const pivotY = centerY + 38;
+      ctx.translate(pivotX, pivotY);
+      ctx.rotate((bendDeg * Math.PI) / 180);
+
+      // 金屬片主體
+      const grad = ctx.createLinearGradient(-4, -76, 8, 0);
+      grad.addColorStop(0, '#F59E0B');
+      grad.addColorStop(0.5, '#FEF3C7');
+      grad.addColorStop(1, '#B45309');
+
+      ctx.fillStyle = Math.abs(bendDeg) > 10 ? '#FCA5A5' : grad;
+      roundRectPath(ctx, -4, -76, 8, 76, 3);
+      ctx.fill();
+      ctx.lineWidth = 1.8;
+      ctx.strokeStyle = Math.abs(bendDeg) > 10 ? '#DC2626' : '#92400E';
+      ctx.stroke();
+
+      // 中央內凹接觸彈片凸點
+      ctx.beginPath();
+      ctx.arc(4, -38, 7, -Math.PI * 0.5, Math.PI * 0.5);
+      ctx.fillStyle = '#FBBF24';
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // 繪製右側負極 (-) 螺旋彈簧（動態計算線圈間距、直徑微張與受力變色）
+    function drawNegativeHelicalSpring(ctx, anchorX, tipX, centerY, restLen) {
+      ctx.save();
+      const currentLen = Math.max(20, anchorX - tipX);
+      const compressionRatio = clamp(1 - currentLen / restLen, 0, 1); // 0 = 自然, 1 = 最大壓縮
+      const coils = 6;
+      const stepX = currentLen / coils;
+      // 壓縮時彈簧圈直徑略微撐大，更符合真實物理
+      const halfH = 26 + compressionRatio * 5;
+
+      // 根據壓縮程度混合銀灰金屬色與受力暖橘紅色
+      const isCompressed = compressionRatio > 0.12;
+      const strokeMain = isCompressed ? '#EA580C' : '#64748B';
+      const strokeHighlight = isCompressed ? '#FDBA74' : '#E2E8F0';
+
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      // 先畫後半段斜線
+      for (let i = 0; i < coils; i++) {
+        const xRight = anchorX - i * stepX;
+        const xLeft = anchorX - (i + 0.5) * stepX;
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 5.5;
+        ctx.beginPath();
+        ctx.moveTo(xRight, centerY - halfH);
+        ctx.lineTo(xLeft, centerY + halfH);
+        ctx.stroke();
+      }
+
+      // 再畫前半段斜線（具高光立體感）
+      for (let i = 0; i < coils; i++) {
+        const xMid = anchorX - (i + 0.5) * stepX;
+        const xNext = anchorX - (i + 1) * stepX;
+
+        ctx.strokeStyle = strokeMain;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(xMid, centerY + halfH);
+        ctx.lineTo(xNext, centerY - halfH);
+        ctx.stroke();
+
+        ctx.strokeStyle = strokeHighlight;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(xMid, centerY + halfH);
+        ctx.lineTo(xNext, centerY - halfH);
+        ctx.stroke();
+      }
+
+      // 彈簧前端壓盤圓環
+      ctx.fillStyle = isCompressed ? '#F97316' : '#94A3B8';
+      roundRectPath(ctx, tipX - 3, centerY - halfH - 2, 6, (halfH + 2) * 2, 3);
+      ctx.fill();
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // 繪製精緻 3 號 (AA) 電池
+    function drawAABattery(ctx, negX, negY, angleDeg, bodyLen, nubLen, radius) {
+      ctx.save();
+      ctx.translate(negX, negY);
+      ctx.rotate((angleDeg * Math.PI) / 180);
+
+      const h = radius * 2;
+      const bodyLeftX = -bodyLen;
+
+      // 陰影
+      ctx.shadowColor = 'rgba(15, 23, 42, 0.18)';
+      ctx.shadowBlur = 12;
+      ctx.shadowOffsetY = 5;
+
+      // 1. 左側正極凸起金屬頭 (+)
+      const nubGrad = ctx.createLinearGradient(0, -18, 0, 18);
+      nubGrad.addColorStop(0, '#94A3B8');
+      nubGrad.addColorStop(0.4, '#F8FAFC');
+      nubGrad.addColorStop(1, '#64748B');
+      ctx.fillStyle = nubGrad;
+      roundRectPath(ctx, bodyLeftX - nubLen, -17, nubLen + 4, 34, 4);
+      ctx.fill();
+      ctx.shadowColor = 'transparent';
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // 2. 電池圓柱主體（左側金銅正極段 + 右側深藍灰負極段）
+      const splitRatio = 0.28;
+      const splitX = bodyLeftX + bodyLen * splitRatio;
+
+      // 左側金銅色正極外殼
+      const copperGrad = ctx.createLinearGradient(0, -radius, 0, radius);
+      copperGrad.addColorStop(0, '#B45309');
+      copperGrad.addColorStop(0.28, '#FDE68A');
+      copperGrad.addColorStop(0.55, '#F59E0B');
+      copperGrad.addColorStop(1, '#78350F');
+      ctx.fillStyle = copperGrad;
+      roundRectPath(ctx, bodyLeftX, -radius, bodyLen * splitRatio + 8, h, 8);
+      ctx.fill();
+
+      // 右側深海軍藍負極外殼
+      const darkGrad = ctx.createLinearGradient(0, -radius, 0, radius);
+      darkGrad.addColorStop(0, '#0F172A');
+      darkGrad.addColorStop(0.28, '#475569');
+      darkGrad.addColorStop(0.55, '#1E293B');
+      darkGrad.addColorStop(1, '#020617');
+      ctx.fillStyle = darkGrad;
+      roundRectPath(ctx, splitX, -radius, bodyLen * (1 - splitRatio), h, 8);
+      ctx.fill();
+
+      // 外框輪廓線
+      roundRectPath(ctx, bodyLeftX, -radius, bodyLen, h, 8);
+      ctx.strokeStyle = '#1E293B';
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+
+      // 右側負極金屬平底蓋
+      ctx.fillStyle = '#CBD5E1';
+      ctx.fillRect( -4, -radius + 6, 4, h - 12);
+
+      // 3. 電池表面極性標誌（紅色 + 與 藍色 -）
+      // 正極 (+) 徽章
+      ctx.fillStyle = '#EF4444';
+      ctx.beginPath();
+      ctx.arc(bodyLeftX + 46, 0, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = '900 24px &quot;Inter&quot;, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('+', bodyLeftX + 46, 1);
+
+      // 負極 (-) 徽章
+      ctx.fillStyle = '#3B82F6';
+      ctx.beginPath();
+      ctx.arc(-44, 0, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillText('−', -44, 1);
+
+      // 中央規格文字
+      ctx.fillStyle = '#F8FAFC';
+      ctx.font = 'bold 17px &quot;Noto Sans TC&quot;, &quot;Inter&quot;, sans-serif';
+      ctx.fillText('3 號電池 (AA 1.5V)', bodyLeftX + bodyLen * 0.56, 0);
+
+      ctx.restore();
+    }
+
+    // 繪製 45° 傾斜角量角器弧線與參考虛線
+    function draw45DegreeProtractor(ctx, vertexX, vertexY, angleDeg) {
+      ctx.save();
+      const radius = 145;
+      const rad = (angleDeg * Math.PI) / 180;
+
+      // 水平基準虛線（向左延伸）
+      ctx.setLineDash([7, 6]);
+      ctx.strokeStyle = '#0284C7';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(vertexX, vertexY);
+      ctx.lineTo(vertexX - radius - 45, vertexY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      // 45° 扇形填充區
+      ctx.fillStyle = 'rgba(14, 165, 233, 0.16)';
+      ctx.beginPath();
+      ctx.moveTo(vertexX, vertexY);
+      ctx.arc(vertexX, vertexY, radius, Math.PI, Math.PI + rad, false);
+      ctx.closePath();
+      ctx.fill();
+
+      // 45° 弧線外框
+      ctx.strokeStyle = '#0284C7';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(vertexX, vertexY, radius, Math.PI, Math.PI + rad, false);
+      ctx.stroke();
+
+      // 角度文字標籤
+      const midAng = Math.PI + rad * 0.5;
+      const lx = vertexX + Math.cos(midAng) * (radius + 42);
+      const ly = vertexY + Math.sin(midAng) * (radius + 24);
+      drawLabelPill(ctx, lx, ly, `${Math.round(angleDeg)}° 傾斜角`, '#0284C7', '#FFFFFF');
+
+      ctx.restore();
+    }
+
+    // 繪製半透明自然操作手部／手指示意圖
+    function drawErgonomicHand(ctx, tipX, tipY, isPinching) {
+      ctx.save();
+      ctx.translate(tipX, tipY);
+
+      // 施力接觸點脈動光圈
+      const pulse = 10 + Math.sin(performance.now() * 0.008) * 3;
+      ctx.fillStyle = 'rgba(239, 68, 68, 0.22)';
+      ctx.beginPath();
+      ctx.arc(0, 0, pulse, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 半透明手掌與食指輪廓（不遮擋後方電池刻度）
+      ctx.fillStyle = 'rgba(251, 191, 36, 0.32)';
+      ctx.strokeStyle = '#D97706';
+      ctx.lineWidth = 2.5;
+      ctx.lineJoin = 'round';
+
+      ctx.beginPath();
+      // 指尖圓弧位於 (0, 0)
+      ctx.arc(0, -10, 12, Math.PI * 0.15, Math.PI * 0.95);
+      // 食指向上延伸至手背
+      ctx.lineTo(-16, -68);
+      ctx.quadraticCurveTo(-24, -105, 12, -115);
+      ctx.quadraticCurveTo(46, -118, 48, -76);
+      // 彎曲的其他手指
+      ctx.quadraticCurveTo(46, -54, 28, -50);
+      ctx.quadraticCurveTo(22, -36, 12, -32);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      // 指甲細節
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+      roundRectPath(ctx, -7, -14, 12, 9, 4);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    // 繪製模組二施力箭頭與步驟標註
+    function drawModule2Annotations(ctx, t, isInstall, err, batNegX, batNegY, batAngleDeg, springTipX, statusBanner) {
+      ctx.save();
+
+      if (isInstall) {
+        if (t <= 1.0) {
+          drawLabelPill(ctx, springTipX - 35, 446, '負極（平端）對準彈簧', '#DBEAFE', '#1E40AF', '#3B82F6');
+        } else if (t <= 2.0) {
+          if (!err) {
+            drawForceArrow(ctx, 410, 185, 515, 255, '#EF4444', '沿 45° 角壓縮彈簧');
+            drawLabelPill(ctx, 705, 446, '彈簧壓縮蓄力', '#FFEDD5', '#9A3412', '#F97316');
+          } else {
+            drawForceArrow(ctx, 310, 205, 310, 285, '#DC2626', '錯誤：未壓彈簧直接硬壓');
+          }
+        } else {
+          if (!err &amp;&amp; t < 2.75) {
+            drawForceArrow(ctx, 325, 215, 325, 295, '#16A34A', '保持彈簧壓縮・向下壓入正極');
+          }
+        }
+      } else {
+        // 取出電池模式
+        if (t <= 1.0) {
+          drawLabelPill(ctx, 295, 195, '施力點：電池正極端 (+)', '#FEE2E2', '#991B1B', '#EF4444');
+        } else if (t <= 2.0) {
+          if (!err) {
+            drawForceArrow(ctx, 275, 235, 375, 235, '#EF4444', '從正極向負極推壓（壓縮彈簧）');
+            drawLabelPill(ctx, 705, 446, '彈簧被壓縮・正極退開', '#FFEDD5', '#9A3412', '#F97316');
+          } else {
+            drawForceArrow(ctx, 290, 280, 290, 195, '#DC2626', '錯誤：未推彈簧直接向上硬拔');
+          }
+        } else {
+          if (!err) {
+            drawForceArrow(ctx, 295, 270, 325, 175, '#16A34A', '由正極端向上提出');
+          }
+        }
+      }
+
+      // 頂部狀態結果橫幅
+      if (statusBanner) {
+        const bg = statusBanner.type === 'success' ? '#16A34A' : '#DC2626';
+        drawLabelPill(ctx, 500, 72, statusBanner.text, bg, '#FFFFFF');
+      }
+
+      ctx.restore();
+    }
+
+    /**
+     * ============================================================================
+     * 7. UI 互動控制與時間軸同步
+     * ============================================================================
+     */
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const scrubber = document.getElementById('timelineScrubber');
+
+    function resizeCanvas() {
+      const wrapper = document.getElementById('canvasWrapper');
+      const rect = wrapper.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.max(1, Math.floor(rect.width * dpr));
+      canvas.height = Math.max(1, Math.floor(rect.height * dpr));
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+
+    // 切換主模組 (1 或 2)
+    function switchModule(modNum) {
+      state.activeModule = modNum;
+      state.progress = 0.0;
+      state.isPlaying = true;
+      state.lastStepIndex = -1;
+      state.outcomeSoundPlayed = false;
+
+      // 更新分頁按鈕樣式
+      const tab1 = document.getElementById('tabModule1');
+      const tab2 = document.getElementById('tabModule2');
+      if (modNum === 1) {
+        tab1.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 bg-white text-blue-700 shadow-sm ring-1 ring-slate-200';
+        tab1.querySelector('span').className = 'w-5 h-5 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center shrink-0';
+        tab2.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 text-slate-600 hover:text-slate-900';
+        tab2.querySelector('span').className = 'w-5 h-5 rounded-full bg-slate-300 text-slate-700 text-xs flex items-center justify-center shrink-0';
+      } else {
+        tab2.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 bg-white text-blue-700 shadow-sm ring-1 ring-slate-200';
+        tab2.querySelector('span').className = 'w-5 h-5 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center shrink-0';
+        tab1.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 text-slate-600 hover:text-slate-900';
+        tab1.querySelector('span').className = 'w-5 h-5 rounded-full bg-slate-300 text-slate-700 text-xs flex items-center justify-center shrink-0';
+      }
+
+      renderSubModeBar();
+      buildScrubberTicks();
+      buildStepList();
+      updatePlayPauseUI();
+      syncUIWithProgress(true);
+    }
+
+    // 切換模組二子模式 ('install' 裝入 / 'remove' 取出)
+    function setSubMode2(mode) {
+      state.subMode2 = mode;
+      state.progress = 0.0;
+      state.isPlaying = true;
+      state.lastStepIndex = -1;
+      state.outcomeSoundPlayed = false;
+      renderSubModeBar();
+      buildScrubberTicks();
+      buildStepList();
+      updatePlayPauseUI();
+      syncUIWithProgress(true);
+    }
+
+    // 切換局部放大鏡（模組一）
+    function toggleMagnifier() {
+      state.showMagnifier = !state.showMagnifier;
+      renderSubModeBar();
+    }
+
+    // 渲染畫布頂部子控制列
+    function renderSubModeBar() {
+      const container = document.getElementById('subModeContainer');
+      if (state.activeModule === 1) {
+        container.innerHTML = `
+          <button onclick=&quot;toggleMagnifier()&quot;
+            class=&quot;px-3 py-1.5 rounded-xl text-xs font-bold border transition flex items-center gap-1.5 ${
+              state.showMagnifier
+                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+            }&quot;>
+            <span>🔍 局部特寫放大鏡：${state.showMagnifier ? '開啟' : '關閉'}</span>
+          </button>
+        `;
+      } else {
+        const isInst = state.subMode2 === 'install';
+        container.innerHTML = `
+          <div class=&quot;inline-flex rounded-xl bg-slate-200/80 p-1 border border-slate-300/60&quot;>
+            <button onclick=&quot;setSubMode2('install')&quot;
+              class=&quot;px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                isInst ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              }&quot;>
+              <span>▶ 裝入電池動畫（45° 壓彈簧）</span>
+            </button>
+            <button onclick=&quot;setSubMode2('remove')&quot;
+              class=&quot;px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                !isInst ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              }&quot;>
+              <span>◀ 取出電池動畫（正極推壓提出）</span>
+            </button>
+          </div>
+        `;
+      }
+    }
+
+    // 切換「正確標準做法」vs「常見錯誤示範」
+    function setErrorMode(isErr) {
+      state.isErrorMode = isErr;
+      state.outcomeSoundPlayed = false;
+
+      const btnCorrect = document.getElementById('btnModeCorrect');
+      const btnError = document.getElementById('btnModeError');
+      if (!isErr) {
+        btnCorrect.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-emerald-600 text-white shadow-sm';
+        btnError.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-600 hover:text-rose-700';
+      } else {
+        btnCorrect.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 text-slate-600 hover:text-emerald-700';
+        btnError.className = 'px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-rose-600 text-white shadow-sm';
+      }
+
+      // 若當前已接近結尾，自動從該模式關鍵轉折處開始演示，方便師生立刻比較！
+      const maxS = getMaxSteps();
+      if (state.progress >= maxS - 0.1) {
+        state.progress = state.activeModule === 1 ? 2.0 : 1.0;
+        state.isPlaying = true;
+        updatePlayPauseUI();
+      }
+      buildStepList();
+      syncUIWithProgress(true);
+    }
+
+    function togglePlay() {
+      const maxS = getMaxSteps();
+      if (!state.isPlaying &amp;&amp; state.progress >= maxS - 0.01) {
+        state.progress = 0.0;
+        state.outcomeSoundPlayed = false;
+      }
+      state.isPlaying = !state.isPlaying;
+      updatePlayPauseUI();
+    }
+
+    function replayAnimation() {
+      state.progress = 0.0;
+      state.isPlaying = true;
+      state.lastStepIndex = -1;
+      state.outcomeSoundPlayed = false;
+      updatePlayPauseUI();
+      syncUIWithProgress(true);
+    }
+
+    function prevStep() {
+      const currentIdx = Math.floor(Math.max(0, state.progress - 0.05));
+      const targetStep = Math.max(0, currentIdx - 1);
+      state.progress = targetStep;
+      state.isPlaying = false;
+      state.outcomeSoundPlayed = false;
+      updatePlayPauseUI();
+      syncUIWithProgress(true);
+      sfx.playStepTick();
+    }
+
+    function nextStep() {
+      const maxS = getMaxSteps();
+      const currentIdx = Math.floor(Math.min(maxS - 0.001, state.progress));
+      const targetStep = Math.min(maxS - 1, currentIdx + 1);
+      state.progress = targetStep;
+      state.isPlaying = true; // 點擊下一步自動播放該步驟過程
+      state.outcomeSoundPlayed = false;
+      updatePlayPauseUI();
+      syncUIWithProgress(true);
+      sfx.playStepTick();
+    }
+
+    function jumpToStep(stepIdx) {
+      state.progress = stepIdx;
+      state.isPlaying = true;
+      state.outcomeSoundPlayed = false;
+      updatePlayPauseUI();
+      syncUIWithProgress(true);
+      sfx.playStepTick();
+    }
+
+    function toggleSpeed() {
+      state.speed = state.speed === 1.0 ? 0.5 : 1.0;
+      document.getElementById('speedText').textContent = state.speed === 1.0 ? '正常 (1.0x)' : '慢動作 (0.5x)';
+    }
+
+    function toggleSound() {
+      sfx.enabled = !sfx.enabled;
+      document.getElementById('iconSoundOn').classList.toggle('hidden', !sfx.enabled);
+      document.getElementById('iconSoundOff').classList.toggle('hidden', sfx.enabled);
+      if (sfx.enabled) sfx.playStepTick();
+    }
+
+    function updatePlayPauseUI() {
+      document.getElementById('iconPause').classList.toggle('hidden', !state.isPlaying);
+      document.getElementById('iconPlay').classList.toggle('hidden', state.isPlaying);
+      document.getElementById('playPauseText').textContent = state.isPlaying ? '暫停' : '播放';
+    }
+
+    // 建立時間軸刻度點
+    function buildScrubberTicks() {
+      const maxS = getMaxSteps();
+      scrubber.max = maxS * 100;
+      const ticksEl = document.getElementById('scrubberTicks');
+      ticksEl.innerHTML = '';
+      for (let i = 0; i <= maxS; i++) {
+        const dot = document.createElement('span');
+        dot.className = 'w-1.5 h-3 rounded-full bg-slate-400/70';
+        ticksEl.appendChild(dot);
+      }
+    }
+
+    // 建立右側步驟清單
+    function buildStepList() {
+      const data = CURRICULUM_DATA[getCurrentKey()];
+      const listEl = document.getElementById('stepListContainer');
+      listEl.innerHTML = '';
+
+      data.steps.forEach((step, idx) => {
+        const btn = document.createElement('button');
+        btn.id = `stepListItem_${idx}`;
+        btn.onclick = () => jumpToStep(idx);
+        btn.className = 'w-full text-left p-2.5 rounded-xl border transition-all flex items-start gap-2.5 border-slate-200 hover:bg-slate-50';
+        btn.innerHTML = `
+          <span class=&quot;step-num w-6 h-6 rounded-lg text-xs font-extrabold flex items-center justify-center shrink-0 mt-0.5 bg-slate-100 text-slate-600&quot;>
+            ${idx + 1}
+          </span>
+          <div class=&quot;min-w-0 flex-1&quot;>
+            <div class=&quot;text-xs font-bold text-slate-800 truncate&quot;>${step.title.replace(/^步驟 \d+：/, '')}</div>
+            <div class=&quot;text-[11px] text-slate-500 line-clamp-1 mt-0.5&quot;>${state.isErrorMode ? step.errorDesc : step.desc}</div>
+          </div>
+        `;
+        listEl.appendChild(btn);
+      });
+    }
+
+    // 時間軸拖曳事件
+    scrubber.addEventListener('input', (e) => {
+      state.isPlaying = false;
+      state.progress = Number(e.target.value) / 100;
+      state.outcomeSoundPlayed = false;
+      updatePlayPauseUI();
+      syncUIWithProgress(true);
+    });
+
+    // 同步時間軸數值與右側教學解說卡片
+    function syncUIWithProgress(forceUpdate = false) {
+      const maxS = getMaxSteps();
+      const stepIdx = Math.min(maxS - 1, Math.floor(state.progress));
+      const pct = Math.round((state.progress / maxS) * 100);
+
+      scrubber.value = Math.round(state.progress * 100);
+      document.getElementById('scrubberPercentLabel').textContent = `${pct}%`;
+
+      // 觸發結果音效（在最後一步達成結果時）
+      if (state.isPlaying &amp;&amp; !state.outcomeSoundPlayed &amp;&amp; state.progress > maxS - 0.35) {
+        state.outcomeSoundPlayed = true;
+        if (state.isErrorMode) sfx.playError();
+        else sfx.playSuccess();
+      }
+
+      if (!forceUpdate &amp;&amp; stepIdx === state.lastStepIndex) return;
+      state.lastStepIndex = stepIdx;
+
+      const data = CURRICULUM_DATA[getCurrentKey()];
+      const step = data.steps[stepIdx];
+
+      document.getElementById('scrubberStepLabel').textContent = `目前進度：${step.title}`;
+      document.getElementById('stepBadge').textContent = `步驟 ${stepIdx + 1} / ${maxS}`;
+      document.getElementById('stepTitle').textContent = step.title;
+
+      const pill = document.getElementById('modeStatusPill');
+      const tipBox = document.getElementById('stepTipBox');
+      const tipTitle = document.getElementById('stepTipTitle');
+
+      if (!state.isErrorMode) {
+        pill.textContent = '✓ 正確標準操作';
+        pill.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800';
+        document.getElementById('stepDescription').textContent = step.desc;
+        tipBox.className = 'rounded-xl bg-amber-50 border border-amber-200/80 p-3.5 flex gap-2.5';
+        tipTitle.textContent = `💡 ${step.tipTitle}`;
+        tipTitle.className = 'text-xs font-bold text-amber-900 mb-0.5';
+        document.getElementById('stepTipText').textContent = step.tip;
+        document.getElementById('stepTipText').className = 'text-xs text-amber-800 leading-relaxed';
+      } else {
+        pill.textContent = '⚠ 常見錯誤示範';
+        pill.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800';
+        document.getElementById('stepDescription').textContent = step.errorDesc;
+        tipBox.className = 'rounded-xl bg-rose-50 border border-rose-200/80 p-3.5 flex gap-2.5';
+        tipTitle.textContent = '⚠️ 錯誤原因與後果分析';
+        tipTitle.className = 'text-xs font-bold text-rose-900 mb-0.5';
+        document.getElementById('stepTipText').textContent = step.errorTip;
+        document.getElementById('stepTipText').className = 'text-xs text-rose-800 leading-relaxed';
+      }
+
+      // 高亮步驟清單中的當前項目
+      data.steps.forEach((_, idx) => {
+        const el = document.getElementById(`stepListItem_${idx}`);
+        if (!el) return;
+        const numBadge = el.querySelector('.step-num');
+        if (idx === stepIdx) {
+          el.className = state.isErrorMode
+            ? 'w-full text-left p-2.5 rounded-xl border transition-all flex items-start gap-2.5 border-rose-300 bg-rose-50/70 shadow-sm'
+            : 'w-full text-left p-2.5 rounded-xl border transition-all flex items-start gap-2.5 border-blue-300 bg-blue-50/70 shadow-sm';
+          numBadge.className = state.isErrorMode
+            ? 'step-num w-6 h-6 rounded-lg text-xs font-extrabold flex items-center justify-center shrink-0 mt-0.5 bg-rose-600 text-white'
+            : 'step-num w-6 h-6 rounded-lg text-xs font-extrabold flex items-center justify-center shrink-0 mt-0.5 bg-blue-600 text-white';
+        } else {
+          el.className = 'w-full text-left p-2.5 rounded-xl border transition-all flex items-start gap-2.5 border-slate-200 hover:bg-slate-50';
+          numBadge.className = 'step-num w-6 h-6 rounded-lg text-xs font-extrabold flex items-center justify-center shrink-0 mt-0.5 bg-slate-100 text-slate-600';
+        }
+      });
+    }
+
+    /**
+     * ============================================================================
+     * 8. 主動畫迴圈（requestAnimationFrame 平滑更新）
+     * ============================================================================
+     */
+    function animateLoop(timestamp) {
+      if (!state.lastTimestamp) state.lastTimestamp = timestamp;
+      const dt = Math.min(0.05, (timestamp - state.lastTimestamp) / 1000);
+      state.lastTimestamp = timestamp;
+
+      const maxS = getMaxSteps();
+
+      if (state.isPlaying) {
+        // 每個步驟約需 1.85 秒（1.0x 速度下），節奏從容清晰適合教學觀察
+        const stepRate = (1 / 1.85) * state.speed;
+        state.progress += dt * stepRate;
+
+        if (state.progress >= maxS) {
+          state.progress = maxS;
+          state.isPlaying = false;
+          updatePlayPauseUI();
+        }
+        syncUIWithProgress(false);
+      }
+
+      // 取得 CSS 邏輯寬高並繪製對應模組畫面
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const viewW = canvas.width / dpr;
+      const viewH = canvas.height / dpr;
+
+      ctx.clearRect(0, 0, viewW, viewH);
+
+      if (state.activeModule === 1) {
+        renderModule1(ctx, viewW, viewH);
+      } else {
+        renderModule2(ctx, viewW, viewH);
+      }
+
+      requestAnimationFrame(animateLoop);
+    }
+
+    // 支援畫布上直接左右拖曳進行時間軸微調（Scrubbing）
+    let isCanvasDragging = false;
+    let dragStartX = 0;
+    let dragStartProgress = 0;
+
+    canvas.addEventListener('pointerdown', (e) => {
+      isCanvasDragging = true;
+      dragStartX = e.clientX;
+      dragStartProgress = state.progress;
+      canvas.setPointerCapture(e.pointerId);
+    });
+
+    canvas.addEventListener('pointermove', (e) => {
+      if (!isCanvasDragging) return;
+      const dx = e.clientX - dragStartX;
+      if (Math.abs(dx) > 4) {
+        state.isPlaying = false;
+        updatePlayPauseUI();
+        const maxS = getMaxSteps();
+        const deltaProgress = (dx / 450) * maxS;
+        state.progress = clamp(dragStartProgress + deltaProgress, 0, maxS);
+        syncUIWithProgress(true);
+      }
+    });
+
+    canvas.addEventListener('pointerup', (e) => {
+      isCanvasDragging = false;
+      canvas.releasePointerCapture(e.pointerId);
+    });
+
+    // 鍵盤左右方向鍵快捷控制
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        togglePlay();
+      } else if (e.code === 'ArrowRight') {
+        nextStep();
+      } else if (e.code === 'ArrowLeft') {
+        prevStep();
+      }
+    });
+
+    // 啟動應用程式
+    window.onload = function () {
+      resizeCanvas();
+      switchModule(1);
+      requestAnimationFrame(animateLoop);
+    };
+  </script>
+</body>
+</html>"></iframe>
+  </section>
+
   <script>
     /**
      * =========================================================================
@@ -1849,7 +4384,54 @@
      * 6. 雙模式切換（模式 A：結構探索解說 / 模式 B：通路組裝模擬）
      * =========================================================================
      */
+    function loadTechniqueFrame() {
+      const frame = document.getElementById('technique-frame');
+      if (frame.dataset.loaded) return;
+      frame.dataset.loaded = '1';
+      frame.addEventListener('load', () => {
+        try {
+          const doc = frame.contentDocument;
+          const fit = () => {
+            frame.style.height = doc.documentElement.scrollHeight + 'px';
+          };
+          fit();
+          new ResizeObserver(fit).observe(doc.body);
+        } catch (err) {
+          /* 若無法存取內容則維持預設高度 */
+        }
+      });
+      frame.srcdoc = frame.dataset.srcdoc;
+    }
+
     function switchMode(mode) {
+      const btnA = document.getElementById('btn-mode-a');
+      const btnB = document.getElementById('btn-mode-b');
+      const btnC = document.getElementById('btn-mode-c');
+      const mainEl = document.getElementById('main-explorer');
+      const techEl = document.getElementById('main-technique');
+      const resetBtn = document.getElementById('btn-reset-view');
+      const inactive = 'touch-btn flex-1 sm:flex-initial px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-900 flex items-center justify-center gap-1.5';
+
+      if (mode === 'C') {
+        currentMode = 'C';
+        btnA.className = inactive;
+        btnB.className = inactive;
+        btnC.className = 'touch-btn flex-1 sm:flex-initial px-4 py-2 rounded-lg text-sm font-bold bg-emerald-600 text-white shadow-sm flex items-center justify-center gap-1.5';
+        mainEl.classList.add('hidden');
+        techEl.classList.remove('hidden');
+        resetBtn.classList.add('hidden');
+        loadTechniqueFrame();
+        return;
+      }
+
+      btnC.className = inactive;
+      techEl.classList.add('hidden');
+      mainEl.classList.remove('hidden');
+      resetBtn.classList.remove('hidden');
+      switchModeAB(mode);
+    }
+
+    function switchModeAB(mode) {
       currentMode = mode;
       const btnA = document.getElementById('btn-mode-a');
       const btnB = document.getElementById('btn-mode-b');
